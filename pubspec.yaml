@@ -1,0 +1,62 @@
+name: DavomatYettilik
+description: Yettilik
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  flutter_local_notifications: ^16.1.0
+  supabase_flutter: ^2.8.3
+  modular_ui: ^0.0.5 # Qo'shilgan
+  qr_code_scanner: ^1.0.1
+  logger: ^2.0.2
+  file_picker: ^8.3.2
+  super_cupertino_navigation_bar: ^2.1.2
+  geolocator: ^10.1.0
+  permission_handler: ^11.0.1
+  flutter_styled_toast: ^2.2.1
+  awesome_bottom_bar: ^1.2.4
+  flutter_dotenv: ^5.2.0
+  detect_fake_location: ^2.1.0
+  safe_device: ^1.2.0
+  path_provider: ^2.1.1
+  badges: ^3.1.1
+  pull_to_refresh_flutter3: ^2.0.2
+  flutter_localization: ^0.3.0
+  provider: ^6.0.0
+  shared_preferences: ^2.3.3
+  flutter_cache_manager: ^3.4.1
+  http: ^1.1.0
+  path: ^1.9.0
+  cached_network_image: ^3.0.00
+  url_launcher: ^6.3.1
+  open_file: ^3.5.10
+  workmanager: ^0.5.2
+  animate_do: ^3.3.4 # Add animate_do dependency
+  motion: ^1.4.1 # Add motion dependency
+  # flutter_native_splash: ^2.4.4 # Remove flutter_native_splash dependency
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  build_runner: ^2.4.9
+
+flutter:
+  uses-material-design: true
+
+  assets:
+   - .env
+   - assets/logo.png
+  # REMOVE flutter_native_splash CONFIGURATION HERE:
+  # flutter_native_splash:
+  #   color: "#ffffff" # Customize splash screen background color
+  #   image: assets/splash_image.png # Path to your splash image (replace with your actual path)
+  #   android_12_splash:
+  #     image: assets/splash_image_android12.png # Optional: Path for Android 12+ splash image
+  #   web: false # Disable splash screen for web if needed
