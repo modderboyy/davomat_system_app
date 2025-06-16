@@ -1,4 +1,6 @@
+//history_page.dart
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart'; // Import Material library for Card
 import 'package:DavomatYettilik/main.dart'; // Replace with your project name
 import 'package:intl/intl.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
@@ -6,6 +8,41 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
+
+// Modular UI Components (Cards and Buttons) - from your provided code (ensure this is in the same file or correctly imported)
+class MUILoginCard extends StatelessWidget {
+  final Widget child;
+
+  const MUILoginCard({Key? key, required this.child}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width * 0.07,
+          vertical: 8.0, // Reduced vertical padding for history items
+        ),
+        child: SingleChildScrollView(
+          // Removed SingleChildScrollView - not needed for card itself
+          physics:
+              NeverScrollableScrollPhysics(), // Disable scrolling inside card
+          child: Card(
+            elevation: 4.0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(16.0), // Reduced padding inside card
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -20,13 +57,81 @@ class _HistoryPageState extends State<HistoryPage> {
   bool isLoading = false;
   final RefreshController _refreshController =
       RefreshController(initialRefresh: false);
+  final Color primaryColor = const Color(0xFF3700B3); // Define primaryColor
+
+  String _currentLanguage = 'uz';
+  final Map<String, String> _languageTitlesForHistory = {
+    'en': 'Attendance History',
+    'uz': 'Davomat Tarixi',
+    'ru': 'История Посещений',
+  };
+  final Map<String, Map<String, String>> _localizedStringsForHistory = {
+    'en': {
+      'attendance_history_title': 'Attendance History',
+      'loading': 'Loading...',
+      'user_data_not_found': 'User data not found.',
+      'company_not_assigned': 'You are not assigned to a company.',
+      'no_attendance_history': 'No attendance history found.',
+      'error_loading_history': 'Error loading attendance history!',
+      'unknown_time': 'Unknown time',
+      'date': 'Date:',
+      'arrival_time': 'Arrival time:',
+      'departure_time': 'Departure time:',
+      'not_recorded': 'Not recorded',
+      'no_history_found':
+          'No attendance history found.', // repeated for empty list case
+    },
+    'uz': {
+      'attendance_history_title': 'Davomat Tarixi',
+      'loading': 'Yuklanmoqda...',
+      'user_data_not_found': 'Foydalanuvchi maʼlumotlari topilmadi.',
+      'company_not_assigned': "Siz kompaniyaga biriktirilmagansiz.",
+      'no_attendance_history': 'Davomat tarixi topilmadi.',
+      'error_loading_history': 'Davomat tarixini yuklashda xatolik bor!',
+      'unknown_time': 'Noma\'lum vaqt',
+      'date': 'Sana:',
+      'arrival_time': 'Kelish vaqti:',
+      'departure_time': 'Ketish vaqti:',
+      'not_recorded': 'Qayd etilmagan',
+      'no_history_found':
+          'Davomat tarixi topilmadi.', // repeated for empty list case
+    },
+    'ru': {
+      'attendance_history_title': 'История Посещений',
+      'loading': 'Загрузка...',
+      'user_data_not_found': 'Данные пользователя не найдены.',
+      'company_not_assigned': 'Вы не прикреплены к компании.',
+      'no_attendance_history': 'История посещений не найдена.',
+      'error_loading_history': 'Ошибка загрузки истории посещений!',
+      'unknown_time': 'Неизвестное время',
+      'date': 'Дата:',
+      'arrival_time': 'Время прихода:',
+      'departure_time': 'Время ухода:',
+      'not_recorded': 'Не записано',
+      'no_history_found':
+          'История посещений не найдена.', // repeated for empty list case
+    },
+  };
 
   @override
   void initState() {
     super.initState();
     tzdata.initializeTimeZones(); // Initialize timezone data
+    _loadLanguagePreference();
     _loadCachedAttendanceHistory();
     _loadAttendanceHistory();
+  }
+
+  Future<void> _loadLanguagePreference() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _currentLanguage = prefs.getString('language') ?? 'uz';
+    });
+  }
+
+  String _translate(String key) {
+    return _localizedStringsForHistory[_currentLanguage]![key] ??
+        _localizedStringsForHistory['uz']![key]!;
   }
 
   Future<void> _loadCachedAttendanceHistory() async {
@@ -44,14 +149,14 @@ class _HistoryPageState extends State<HistoryPage> {
     if (!mounted) return;
     setState(() {
       isLoading = true;
-      message = 'Yuklanmoqda...';
+      message = _translate('loading');
     });
 
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) {
         setState(() {
-          message = 'Foydalanuvchi maʼlumotlari topilmadi.';
+          message = _translate('user_data_not_found');
           isLoading = false;
         });
         _refreshController.refreshCompleted();
@@ -68,7 +173,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
       if (companyId == null) {
         setState(() {
-          message = "Siz kompaniyaga biriktirilmagansiz.";
+          message = _translate('company_not_assigned');
           isLoading = false;
         });
         _refreshController.refreshCompleted();
@@ -85,7 +190,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
       if (response == null || response.isEmpty) {
         setState(() {
-          message = 'Davomat tarixi topilmadi.';
+          message = _translate('no_attendance_history');
           attendanceHistory = [];
         });
         _refreshController.refreshCompleted();
@@ -118,7 +223,7 @@ class _HistoryPageState extends State<HistoryPage> {
       _cacheAttendanceHistory();
     } catch (error) {
       setState(() {
-        message = 'Davomat tarixini yuklashda xatolik bor!';
+        message = _translate('error_loading_history');
         attendanceHistory = [];
       });
     } finally {
@@ -139,7 +244,7 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   String _formatTashkentTime(DateTime? dateTime) {
-    if (dateTime == null) return 'Noma\'lum vaqt';
+    if (dateTime == null) return _translate('unknown_time');
 
     final tashkentTimeZone = tz.getLocation('Asia/Tashkent');
     // Assuming dateTime is in UTC, convert to Tashkent time
@@ -153,10 +258,11 @@ class _HistoryPageState extends State<HistoryPage> {
     final isDarkMode = CupertinoTheme.of(context).brightness == Brightness.dark;
     final textColor =
         isDarkMode ? CupertinoColors.white : CupertinoColors.black;
+    final cardTextColor = Colors.black87; // Text color inside the card
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('Davomat Tarixi'),
+        middle: Text(_translate('attendance_history_title')),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: _onRefresh,
@@ -179,7 +285,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   )
                 : attendanceHistory.isEmpty
                     ? Center(
-                        child: Text('Davomat tarixi topilmadi.',
+                        child: Text(_translate('no_history_found'),
                             style: TextStyle(color: textColor)),
                       )
                     : ListView.builder(
@@ -191,62 +297,56 @@ class _HistoryPageState extends State<HistoryPage> {
                           final ketishVaqti = attendance['ketish_vaqti'];
 
                           final sanaFormat = DateFormat('dd.MM.yyyy');
-                          final vaqtFormat = DateFormat('HH:mm');
 
                           final formattedKelishSana = kelishSana != null
                               ? sanaFormat.format(DateTime.parse(kelishSana))
-                              : 'Noma\'lum sana';
+                              : 'Noma\'lum sana'; // No need to translate date format
                           final formattedKelishVaqti = kelishVaqti != null
                               ? _formatTashkentTime(
                                   kelishVaqti) // Use Tashkent time format
-                              : 'Noma\'lum vaqt';
+                              : _translate('unknown_time');
                           final formattedKetishVaqti = ketishVaqti != null
                               ? _formatTashkentTime(
                                   ketishVaqti) // Use Tashkent time format
-                              : 'Qayd etilmagan';
+                              : _translate('not_recorded');
 
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 8.0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color:
-                                    CupertinoColors.systemBlue.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: CupertinoColors.systemBlue
-                                        .withOpacity(0.5),
-                                    width: 2),
-                              ),
+                          return MUILoginCard(
+                            // Use MUILoginCard here
+                            child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Sana: $formattedKelishSana',
-                                    style: const TextStyle(
+                                    '${_translate('date')} $formattedKelishSana',
+                                    style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: CupertinoColors.white),
+                                        color:
+                                            cardTextColor), // Use cardTextColor
                                   ),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
-                                      const Text('Kelish vaqti: ',
+                                      Text('${_translate('arrival_time')} ',
                                           style: TextStyle(
-                                              color: CupertinoColors.white)),
+                                              color:
+                                                  cardTextColor)), // Use cardTextColor
                                       Text(formattedKelishVaqti,
-                                          style: const TextStyle(
-                                              color: CupertinoColors.white)),
+                                          style: TextStyle(
+                                              color:
+                                                  cardTextColor)), // Use cardTextColor
                                     ],
                                   ),
                                   Row(
                                     children: [
-                                      const Text('Ketish vaqti: ',
+                                      Text('${_translate('departure_time')} ',
                                           style: TextStyle(
-                                              color: CupertinoColors.white)),
+                                              color:
+                                                  cardTextColor)), // Use cardTextColor
                                       Text(formattedKetishVaqti,
-                                          style: const TextStyle(
-                                              color: CupertinoColors.white)),
+                                          style: TextStyle(
+                                              color:
+                                                  cardTextColor)), // Use cardTextColor
                                     ],
                                   ),
                                 ],

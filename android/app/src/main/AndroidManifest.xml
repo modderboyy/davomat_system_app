@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="your_package_name"> <!-- Paket nomingizni bu yerga yozing -->
+    package="com.modderboy.davomat"> <!-- Paket nomingizni bu yerga yozing -->
 
     <queries>
         <intent>

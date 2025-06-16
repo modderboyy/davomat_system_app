@@ -1,7 +1,7 @@
 name: DavomatYettilik
 description: Yettilik
 
-version: 1.0.0+1
+version: 1.5.0+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -12,13 +12,17 @@ dependencies:
   cupertino_icons: ^1.0.2
   flutter_local_notifications: ^16.1.0
   supabase_flutter: ^2.8.3
-  modular_ui: ^0.0.5 # Qo'shilgan
+  version: ^3.0.2
+  modular_ui: ^0.0.5 # Qo'shi
+  phonenumbers: ^1.1.1
   qr_code_scanner: ^1.0.1
   logger: ^2.0.2
   file_picker: ^8.3.2
   super_cupertino_navigation_bar: ^2.1.2
   geolocator: ^10.1.0
   permission_handler: ^11.0.1
+  line_icons: ^2.0.1 # yoki 
+  google_nav_bar: ^5.0.7
   flutter_styled_toast: ^2.2.1
   awesome_bottom_bar: ^1.2.4
   flutter_dotenv: ^5.2.0
@@ -39,6 +43,10 @@ dependencies:
   workmanager: ^0.5.2
   animate_do: ^3.3.4 # Add animate_do dependency
   motion: ^1.4.1 # Add motion dependency
+  webview_flutter: ^4.8.0
+  flutter_svg: ^2.1.0
+  connectivity_plus: ^6.0.0 # For checking internet connectivity (optional, good for webviews)
+  timezone: ^0.9.0 # For timezone conversions
   # flutter_native_splash: ^2.4.4 # Remove flutter_native_splash dependency
 
 dev_dependencies:
