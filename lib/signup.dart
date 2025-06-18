@@ -11,8 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher_string.dart';
-import 'package:intl/intl.dart';
-import 'premium_page.dart'; // Import RegistrationView from premium_page.dart
+import 'package:intl/intl.dart'; // Import RegistrationView from premium_page.dart
 
 // Modular UI Components (Cards and Buttons) - Assuming these are already defined as in your provided code
 

@@ -47,6 +47,7 @@ dependencies:
   flutter_svg: ^2.1.0
   connectivity_plus: ^6.0.0 # For checking internet connectivity (optional, good for webviews)
   timezone: ^0.9.0 # For timezone conversions
+  table_calendar: ^3.1.3
   # flutter_native_splash: ^2.4.4 # Remove flutter_native_splash dependency
 
 dev_dependencies:

@@ -1,17 +1,19 @@
-// home_page.dart
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui'; // Keep if needed, often implicitly imported
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'main.dart'; // Correct way to potentially access something public from main.dart if needed (like supabase instance)
+import 'main.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:detect_fake_location/detect_fake_location.dart';
 import 'package:safe_device/safe_device.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart'; // Use this for launching URLs
+import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -33,14 +35,43 @@ class _HomePageState extends State<HomePage> {
   double distanceThreshold = 100;
   String? companyName;
   bool _isLoadingUserData = true;
-  bool _isCameraPaused = false; // Flag to track camera pause state
+  bool _isCameraPaused = false;
+
+  // User data
+  String? userName;
+  String? userEmail;
+  String? userProfileImage;
+  String? userPosition;
+
+  // Subscription status
+  bool _isSubscriptionActive = true;
+  String _subscriptionStatus = 'Active';
+
+  // Calendar data
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  List<DateTime> _attendanceDays = [];
+  Map<DateTime, Map<String, dynamic>> _attendanceDetails = {};
+
+  // Settings
+  bool _showTodayCard = true;
+  bool _showCalendar = true;
+  bool _compactView = false;
+  bool _enableAttendanceMessage = false;
+  String _attendanceMessage = '';
+
+  // Colors
+  static const Color primaryColor = Color(0xFF6e38c9);
+  static const Color secondaryColor = Color(0xFF9c6bff);
+  static const Color backgroundColor = Color(0xFFF8F9FA);
+  static const Color cardColor = Colors.white;
+  static const Color textPrimary = Color(0xFF1A1A1A);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color successColor = Color(0xFF10B981);
+  static const Color warningColor = Color(0xFFF59E0B);
+  static const Color errorColor = Color(0xFFEF4444);
 
   String _currentLanguage = 'uz';
-  final Map<String, String> _languageTitles = {
-    'en': 'Attendance System',
-    'uz': 'Davomat tizimi',
-    'ru': 'Система посещаемости',
-  };
   final Map<String, Map<String, String>> _localizedStrings = {
     'en': {
       'welcome_message': 'Welcome',
@@ -82,6 +113,24 @@ class _HomePageState extends State<HomePage> {
       'no_internet_for_data':
           'No internet. Displaying cached data if available.',
       'settings': 'Settings',
+      'today_attendance': 'Today\'s Attendance',
+      'attendance_calendar': 'Attendance Calendar',
+      'present': 'Present',
+      'absent': 'Absent',
+      'arrival_time': 'Arrival Time',
+      'departure_time': 'Departure Time',
+      'not_recorded': 'Not recorded',
+      'subscription_status': 'Subscription Status',
+      'active': 'Active',
+      'stopped': 'Stopped',
+      'subscription_expired': 'Subscription expired. Please contact admin.',
+      'flash_on': 'Flash On',
+      'flash_off': 'Flash Off',
+      'complete': 'Complete',
+      'incomplete': 'Incomplete',
+      'loading': 'Loading...',
+      'version': 'Version 2.0.0',
+      'app_name': 'Modern Attendance System',
     },
     'uz': {
       'welcome_message': 'Xush kelibsiz',
@@ -128,6 +177,24 @@ class _HomePageState extends State<HomePage> {
       'no_internet_for_data':
           'Internet yo\'q. Mavjud bo\'lsa keshdagi ma\'lumotlar ko\'rsatiladi.',
       'settings': 'Sozlamalar',
+      'today_attendance': 'Bugungi davomat',
+      'attendance_calendar': 'Davomat kalendari',
+      'present': 'Kelgan',
+      'absent': 'Kelmagan',
+      'arrival_time': 'Kelish vaqti',
+      'departure_time': 'Ketish vaqti',
+      'not_recorded': 'Qayd etilmagan',
+      'subscription_status': 'Obuna holati',
+      'active': 'Faol',
+      'stopped': 'To\'xtatilgan',
+      'subscription_expired': 'Obuna muddati tugagan. Admin bilan bog\'laning.',
+      'flash_on': 'Chiroqni yoqish',
+      'flash_off': 'Chiroqni o\'chirish',
+      'complete': 'To\'liq',
+      'incomplete': 'To\'liq emas',
+      'loading': 'Yuklanmoqda...',
+      'version': 'Versiya 2.0.0',
+      'app_name': 'Zamonaviy Davomat Tizimi',
     },
     'ru': {
       'welcome_message': 'Добро пожаловать',
@@ -174,21 +241,26 @@ class _HomePageState extends State<HomePage> {
       'no_internet_for_data':
           'Нет интернета. По возможности будут отображены кэшированные данные.',
       'settings': 'Настройки',
+      'today_attendance': 'Сегодняшняя посещаемость',
+      'attendance_calendar': 'Календарь посещаемости',
+      'present': 'Присутствовал',
+      'absent': 'Отсутствовал',
+      'arrival_time': 'Время прихода',
+      'departure_time': 'Время ухода',
+      'not_recorded': 'Не записано',
+      'subscription_status': 'Статус подписки',
+      'active': 'Активна',
+      'stopped': 'Остановлена',
+      'subscription_expired': 'Подписка истекла. Обратитесь к администратору.',
+      'flash_on': 'Включить вспышку',
+      'flash_off': 'Выключить вспышку',
+      'complete': 'Завершено',
+      'incomplete': 'Не завершено',
+      'loading': 'Загрузка...',
+      'version': 'Версия 2.0.0',
+      'app_name': 'Современная система посещаемости',
     },
   };
-
-  @override
-  void reassemble() {
-    super.reassemble();
-    if (controller != null) {
-      if (Platform.isAndroid) {
-        controller!.pauseCamera();
-        _isCameraPaused = true;
-      }
-      controller!.resumeCamera();
-      _isCameraPaused = false;
-    }
-  }
 
   @override
   void initState() {
@@ -199,9 +271,71 @@ class _HomePageState extends State<HomePage> {
   Future<void> _initializePage() async {
     if (mounted) setState(() => _isLoadingUserData = true);
     await _loadLanguagePreference();
+    await _loadSettings();
     await _loadUserDataFromPrefs();
     await _loadUserData();
+    await _loadUserProfile();
+    await _loadAttendanceData();
+    await _checkSubscriptionStatus();
     if (mounted) setState(() => _isLoadingUserData = false);
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _showTodayCard = prefs.getBool('showTodayCard') ?? true;
+      _showCalendar = prefs.getBool('showCalendar') ?? true;
+      _compactView = prefs.getBool('compactView') ?? false;
+      _enableAttendanceMessage =
+          prefs.getBool('enableAttendanceMessage') ?? false;
+      _attendanceMessage = prefs.getString('attendanceMessage') ?? '';
+    });
+  }
+
+  Future<void> _checkSubscriptionStatus() async {
+    try {
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser == null) return;
+
+      final userResponse = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+      final companyId = userResponse?['company_id'];
+      if (companyId == null) return;
+
+      final companyResponse = await supabase
+          .from('companies')
+          .select('subscription_type, subscription_date')
+          .eq('id', companyId)
+          .maybeSingle();
+
+      if (companyResponse != null) {
+        final subscriptionType = companyResponse['subscription_type'];
+        final subscriptionDate = companyResponse['subscription_date'];
+
+        if (subscriptionType == 'monthly' && subscriptionDate != null) {
+          final subDate = DateTime.parse(subscriptionDate);
+          final now = DateTime.now();
+          final expiryDate =
+              DateTime(subDate.year, subDate.month + 1, subDate.day);
+
+          final isActive = now.isBefore(expiryDate);
+
+          if (mounted) {
+            setState(() {
+              _isSubscriptionActive = isActive;
+              _subscriptionStatus =
+                  isActive ? _translate('active') : _translate('stopped');
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Error checking subscription status: $e");
+    }
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -222,63 +356,91 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _setLanguagePreference(String language) async {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('language', language);
-      if (mounted) {
-        setState(() {
-          _currentLanguage = language;
-        });
-      }
-    } catch (e) {
-      print("Error saving language preference: $e");
-    }
-  }
-
   String _translate(String key) {
     return _localizedStrings[_currentLanguage]?[key] ??
         _localizedStrings['uz']?[key] ??
         key;
   }
 
-  Future<void> _saveUserDataToPrefs(
-      {String? companyName,
-      String? kelishQr,
-      String? ketishQr,
-      double? lat,
-      double? lon,
-      double? threshold}) async {
+  Future<void> _loadUserProfile() async {
+    final currentUser = supabase.auth.currentUser;
+    if (currentUser == null) return;
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      if (companyName != null)
-        await prefs.setString('cachedCompanyName', companyName);
-      else
-        await prefs.remove('cachedCompanyName');
-      if (kelishQr != null)
-        await prefs.setString('cachedKelishQr', kelishQr);
-      else
-        await prefs.remove('cachedKelishQr');
-      if (ketishQr != null)
-        await prefs.setString('cachedKetishQr', ketishQr);
-      else
-        await prefs.remove('cachedKetishQr');
-      if (lat != null)
-        await prefs.setDouble('cachedLatitude', lat);
-      else
-        await prefs.remove('cachedLatitude');
-      if (lon != null)
-        await prefs.setDouble('cachedLongitude', lon);
-      else
-        await prefs.remove('cachedLongitude');
-      if (threshold != null)
-        await prefs.setDouble('cachedThreshold', threshold);
-      else
-        await prefs.remove('cachedThreshold');
+      final userDetails = await supabase
+          .from('users')
+          .select('full_name, email, profile_image, position, company_id')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+      if (userDetails != null && mounted) {
+        setState(() {
+          userName =
+              userDetails['full_name'] ?? currentUser.email?.split('@')[0];
+          userEmail = userDetails['email'] ?? currentUser.email;
+          userProfileImage = userDetails['profile_image'];
+          userPosition = userDetails['position'];
+        });
+      }
     } catch (e) {
-      print("Error saving user data to prefs (HomePage): $e");
+      print("Error loading user profile: $e");
     }
   }
+
+  Future<void> _loadAttendanceData() async {
+    final currentUser = supabase.auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final companyData = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+      final String? companyId = companyData?['company_id'] as String?;
+      if (companyId == null) return;
+
+      // Get attendance data for the current month
+      final startOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
+      final endOfMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
+
+      final attendanceData = await supabase
+          .from('davomat')
+          .select('kelish_sana, kelish_vaqti, ketish_vaqti')
+          .eq('xodim_id', currentUser.id)
+          .eq('company_id', companyId)
+          .gte('kelish_sana', DateFormat('yyyy-MM-dd').format(startOfMonth))
+          .lte('kelish_sana', DateFormat('yyyy-MM-dd').format(endOfMonth));
+
+      if (mounted) {
+        List<DateTime> attendanceDays = [];
+        Map<DateTime, Map<String, dynamic>> attendanceDetails = {};
+
+        for (var record in attendanceData) {
+          final dateStr = record['kelish_sana'] as String;
+          final date = DateTime.parse(dateStr);
+          final normalizedDate = DateTime(date.year, date.month, date.day);
+          attendanceDays.add(normalizedDate);
+
+          attendanceDetails[normalizedDate] = {
+            'arrival_time': record['kelish_vaqti'],
+            'departure_time': record['ketish_vaqti'],
+          };
+        }
+
+        setState(() {
+          _attendanceDays = attendanceDays;
+          _attendanceDetails = attendanceDetails;
+        });
+      }
+    } catch (e) {
+      print("Error loading attendance data: $e");
+    }
+  }
+
+  // Add other necessary methods from the previous home_page.dart here...
+  // (I'll include the key methods for QR scanning and data loading)
 
   Future<void> _loadUserDataFromPrefs() async {
     try {
@@ -294,17 +456,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      print("Error loading user data from prefs (HomePage): $e");
-      if (mounted) {
-        setState(() {
-          companyName = null;
-          kelishQrCode = null;
-          ketishQrCode = null;
-          expectedLatitude = null;
-          expectedLongitude = null;
-          distanceThreshold = 100.0;
-        });
-      }
+      print("Error loading user data from prefs: $e");
     }
   }
 
@@ -313,29 +465,23 @@ class _HomePageState extends State<HomePage> {
 
     final currentUser = supabase.auth.currentUser;
     if (currentUser == null) {
-      print("User not logged in. Cannot load user data.");
       if (mounted) {
         setState(() {
-          message = _translate('user_not_logged_in');
+          message = 'User not logged in';
           _isLoadingUserData = false;
         });
-        await _clearCachedUserData();
       }
       return;
     }
-
-    final userId = currentUser.id;
-    print('Foydalanuvchi IDsi: $userId');
 
     try {
       final companyDataRes = await supabase
           .from('users')
           .select('company_id')
-          .eq('id', userId)
+          .eq('id', currentUser.id)
           .maybeSingle();
 
       final String? companyId = companyDataRes?['company_id'] as String?;
-      print('Kompaniya IDsi: $companyId');
 
       if (companyId != null) {
         final companyNameDataRes = await supabase
@@ -359,49 +505,21 @@ class _HomePageState extends State<HomePage> {
             .maybeSingle();
 
         if (mounted) {
-          final newKelishQr = qrDataRes?['kelish_qrcode'] as String?;
-          final newKetishQr = qrDataRes?['ketish_qrcode'] as String?;
-          final newLat = (locationDataRes?['latitude'] as num?)?.toDouble();
-          final newLon = (locationDataRes?['longitude'] as num?)?.toDouble();
-          final newThreshold =
-              (locationDataRes?['distance'] as num?)?.toDouble() ?? 100.0;
-
           setState(() {
             companyName = fetchedCompanyName;
-            kelishQrCode = newKelishQr;
-            ketishQrCode = newKetishQr;
-            expectedLatitude = newLat;
-            expectedLongitude = newLon;
-            distanceThreshold = newThreshold;
+            kelishQrCode = qrDataRes?['kelish_qrcode'] as String?;
+            ketishQrCode = qrDataRes?['ketish_qrcode'] as String?;
+            expectedLatitude =
+                (locationDataRes?['latitude'] as num?)?.toDouble();
+            expectedLongitude =
+                (locationDataRes?['longitude'] as num?)?.toDouble();
+            distanceThreshold =
+                (locationDataRes?['distance'] as num?)?.toDouble() ?? 100.0;
           });
-          await _saveUserDataToPrefs(
-              companyName: fetchedCompanyName,
-              kelishQr: newKelishQr,
-              ketishQr: newKetishQr,
-              lat: newLat,
-              lon: newLon,
-              threshold: newThreshold);
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            message = _translate('company_not_assigned');
-            companyName = null;
-            kelishQrCode = null;
-            ketishQrCode = null;
-            expectedLatitude = null;
-            expectedLongitude = null;
-          });
-          await _clearCachedUserData();
         }
       }
     } catch (error) {
-      print("Foydalanuvchi ma'lumotlarini yuklashda xatolik: $error");
-      if (mounted) {
-        setState(() {
-          message = _translate('no_internet_for_data');
-        });
-      }
+      print("Error loading user data: $error");
     } finally {
       if (mounted) {
         setState(() => _isLoadingUserData = false);
@@ -409,549 +527,88 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _clearCachedUserData() async {
-    await _saveUserDataToPrefs(
-        companyName: null,
-        kelishQr: null,
-        ketishQr: null,
-        lat: null,
-        lon: null,
-        threshold: null);
-  }
-
-  Future<bool> _requestPermissions() async {
-    Map<Permission, PermissionStatus> statuses = {};
-    bool granted = true;
-
-    PermissionStatus cameraStatus = await Permission.camera.status;
-    if (!cameraStatus.isGranted) {
-      cameraStatus = await Permission.camera.request();
+  void _showQRScanner() {
+    if (!_isSubscriptionActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_translate('subscription_expired')),
+          backgroundColor: errorColor,
+        ),
+      );
+      return;
     }
-    statuses[Permission.camera] = cameraStatus;
 
-    PermissionStatus locationStatus = await Permission.location.status;
-    if (!locationStatus.isGranted && !locationStatus.isPermanentlyDenied) {
-      locationStatus = await Permission.locationWhenInUse.request();
-    }
-    statuses[Permission.location] = await Permission.location.status;
-
-    print("Permission Statuses: $statuses");
-
-    if (!await Permission.camera.isGranted ||
-        !(await Permission.location.isGranted ||
-            await Permission.locationWhenInUse.isGranted)) {
-      granted = false;
-      if (await Permission.camera.isPermanentlyDenied ||
-          await Permission.location.isPermanentlyDenied) {
-        if (mounted) {
-          _showPermissionSettingsDialog();
-        }
-      }
-    }
-    return granted;
-  }
-
-  void _showPermissionSettingsDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_translate('error')),
-        content: Text(_translate('camera_location_permission_denied')),
-        actions: [
-          TextButton(
-            child: Text(_translate('ok')),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          TextButton(
-            child: Text(_translate('settings')),
-            onPressed: () {
-              openAppSettings();
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildQRScannerModal(),
     );
   }
 
-  Future<bool> _isRealDevice() async {
-    bool isMock = false;
-    try {
-      bool isFakeLocationDetected =
-          await DetectFakeLocation().detectFakeLocation();
-      if (isFakeLocationDetected) {
-        print("Fake location detected by detect_fake_location.");
-        isMock = true;
-      }
-      bool isMockLocationBySafeDevice = await SafeDevice.isMockLocation;
-      if (isMockLocationBySafeDevice) {
-        print("Mock location detected by safe_device.");
-        isMock = true;
-      }
-      return !isMock;
-    } catch (e) {
-      print("Soxta joylashuvni/qurilmani aniqlashda xatolik: $e");
-      return false;
-    }
-  }
-
-  Future<void> _handleScanLogic(String data) async {
-    if (data.isEmpty) return;
-
-    // KERAKSIZ QAYTA E'LON QILISHNI Oлиб ташлаймиз:
-    // final currentUser = supabase.auth.currentUser; // BU QATORNI OLIB TASHLAYMIZ
-    // if (currentUser == null) { // BU SHARTNI O'ZGARTIRAMIZ
-    if (supabase.auth.currentUser == null) {
-      // TO'G'RIDAN-TO'G'RI TEKSHIRAMIZ
-      if (mounted) setState(() => message = _translate('user_not_logged_in'));
-      return;
-    }
-    // final userId = currentUser.id; // BU QATORNI OLIB TASHLAYMIZ
-    final userId = supabase.auth.currentUser!.id; // TO'G'RIDAN-TO'G'RI OLAMIZ
-
-    if (mounted) setState(() => message = _translate('checking'));
-
-    final hasPermissions = await _requestPermissions();
-    if (!hasPermissions) {
-      if (mounted)
-        setState(
-            () => message = _translate('camera_location_permission_denied'));
-      return;
-    }
-
-    String? companyIdLocal;
-    // Agar `companyName` keshdan yuklangan bo'lsa va `companyIdLocal` hali olinmagan bo'lsa,
-    // yoki `companyName` keshdan yuklanmagan bo'lsa (birinchi marta yuklash yoki kesh yo'q bo'lsa)
-    // unda `company_id` ni Supabasedan olishga harakat qilamiz.
-    if ((companyName != null && companyIdLocal == null) ||
-        companyName == null) {
-      try {
-        final companyData = await supabase
-            .from('users')
-            .select('company_id')
-            .eq('id', userId) // `userId` ni ishlatamiz
-            .maybeSingle();
-
-        if (companyData != null && companyData['company_id'] != null) {
-          companyIdLocal = companyData['company_id'] as String?;
-        } else {
-          if (mounted && companyName == null) {
-            setState(() => message = _translate('company_not_assigned'));
-          }
-        }
-      } catch (e) {
-        print("Error fetching company_id for user $userId: $e");
-        if (mounted) {
-          setState(() => message = _translate('error_fetching_company_id'));
-        }
-        if (companyName == null) return;
-      }
-    }
-
-    if (companyIdLocal == null && companyName == null) {
-      if (mounted) setState(() => message = _translate('company_not_assigned'));
-      return;
-    }
-    // `effectiveCompanyId` ni `userId` dan keyin va `companyIdLocal`ni olgandan keyin aniqlaymiz
-    final String effectiveCompanyId = companyIdLocal ??
-        "CACHE_BASED_ID_IF_NEEDED"; // Agar companyIdLocal null bo'lsa, bu qiymat ishlatiladi.
-    // Haqiqiy oflayn rejim uchun bu qismni qayta ko'rib chiqish kerak bo'lishi mumkin.
-
-    try {
-      final blockedUser = await supabase
-          .from('blocked')
-          .select()
-          .eq('user_id', userId) // `userId` ni ishlatamiz
-          .eq('company_id', effectiveCompanyId)
-          .maybeSingle();
-      if (blockedUser != null) {
-        if (mounted) setState(() => message = _translate('blocked'));
-        return;
-      }
-    } catch (e) {
-      print("Error checking blocked status: $e");
-      if (mounted)
-        setState(() => message =
-            "${_translate('error_occurred')}Bloklanganlikni tekshirishda xatolik.");
-      return;
-    }
-
-    final isReal = await _isRealDevice();
-    if (!isReal) {
-      if (mounted)
-        setState(() => message = _translate('fake_location_detected'));
-      try {
-        await supabase.from('blocked').insert({
-          'user_id': userId,
-          'company_id': effectiveCompanyId
-        }); // `userId` ni ishlatamiz
-      } catch (e) {/* ... */}
-      return;
-    }
-
-    if (expectedLatitude == null || expectedLongitude == null) {
-      if (mounted)
-        setState(() => message = _translate('location_data_not_loaded'));
-      await _loadUserData();
-      if (expectedLatitude == null || expectedLongitude == null) return;
-    }
-
-    if (kelishQrCode == null || ketishQrCode == null) {
-      if (mounted)
-        setState(() => message = _translate('global_qr_codes_not_found'));
-      await _loadUserData();
-      if (kelishQrCode == null || ketishQrCode == null) return;
-    }
-
-    try {
-      final Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 15));
-      final distance = Geolocator.distanceBetween(position.latitude,
-          position.longitude, expectedLatitude!, expectedLongitude!);
-
-      if (distance > distanceThreshold) {
-        if (mounted)
-          setState(() => message =
-              "${_translate('not_at_workplace')} (${distance.toStringAsFixed(1)}m)");
-        return;
-      }
-
-      final today = DateTime.now().toLocal().toString().split(' ')[0];
-      final now = DateTime.now().toLocal().toIso8601String();
-      final existingAttendance = await supabase
-          .from('davomat')
-          .select()
-          .eq('xodim_id', userId) // `userId` ni ishlatamiz
-          .eq('kelish_sana', today)
-          .eq('company_id', effectiveCompanyId)
-          .maybeSingle();
-
-      if (data == kelishQrCode) {
-        if (existingAttendance == null) {
-          await supabase.from('davomat').insert({
-            'xodim_id': userId, 'kelish_sana': today, 'kelish_vaqti': now,
-            'company_id': effectiveCompanyId, // `userId` ni ishlatamiz
-          });
-          if (mounted) setState(() => message = _translate('arrival_saved'));
-        } else {
-          if (mounted)
-            setState(() => message = _translate('already_marked_arrival'));
-        }
-      } else if (data == ketishQrCode) {
-        if (existingAttendance != null) {
-          if (existingAttendance['ketish_vaqti'] == null) {
-            await supabase.from('davomat').update({'ketish_vaqti': now}).eq(
-                'id', existingAttendance['id']);
-            if (mounted)
-              setState(() => message = _translate('departure_saved'));
-          } else {
-            if (mounted)
-              setState(() => message = _translate('already_marked_departure'));
-          }
-        } else {
-          if (mounted)
-            setState(() => message = _translate('mark_arrival_first'));
-        }
-      } else {
-        if (mounted) setState(() => message = _translate('wrong_qr_code'));
-      }
-    } on TimeoutException catch (_) {
-      if (mounted)
-        setState(() => message = _translate('location_retrieval_timeout'));
-    } on PermissionDeniedException {
-      if (mounted) {
-        setState(
-            () => message = _translate('camera_location_permission_denied'));
-        _showPermissionSettingsDialog();
-      }
-    } on LocationServiceDisabledException {
-      if (mounted)
-        setState(() => message = _translate('location_services_disabled'));
-    } catch (e) {
-      print("An error occurred during scan logic: $e");
-      if (mounted)
-        setState(
-            () => message = "${_translate('error_occurred')}${e.toString()}");
-    } finally {
-      if (mounted && message != _translate('checking')) {
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted && controller != null && !_isCameraPaused) {
-            controller!.resumeCamera();
-            _isCameraPaused = false;
-            if (mounted)
-              setState(() {
-                message = '';
-              });
-          }
-        });
-      }
-    }
-  }
-
-  void _resetScanner() {
-    if (mounted) {
-      setState(() {
-        result = null;
-        message = '';
-      });
-    }
-    if (controller != null) {
-      controller!.resumeCamera();
-      _isCameraPaused = false;
-    }
-    _loadUserData();
-  }
-
-  void _showInfoDialog() {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(_translate('about_attendance_system')),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildQRScannerModal() {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            margin: EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_translate('about_text')),
-                const SizedBox(height: 20),
-                _buildLinkButton(context, _translate('telegram_channel'),
-                    'https://t.me/davomat_system'),
-                _buildLinkButton(context, _translate('telegram_group'),
-                    'https://t.me/davomat_system_chat'),
-                _buildLinkButton(context, _translate('telegram_admin'),
-                    'https://t.me/modderboy'),
+                Text(
+                  _translate('scan_qr_code'),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: textPrimary,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(CupertinoIcons.xmark, color: textSecondary),
+                ),
               ],
             ),
           ),
-          actions: <Widget>[
-            TextButton(
-              child: Text(_translate('close')),
-              onPressed: () => Navigator.of(context).pop(),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: _buildQrView(context, 300),
             ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildLinkButton(BuildContext context, String text, String url) {
-    return TextButton(
-      onPressed: () async {
-        final Uri uri = Uri.parse(url);
-        try {
-          // Use launchUrl instead of canLaunchUrl + launchUrl
-          if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-            print('Could not launch $uri');
-            if (mounted)
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Could not open link.")));
-          }
-        } catch (e) {
-          print('Error launching URL $url: $e');
-          if (mounted)
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text("Error opening link.")));
-        }
-      },
-      child: Text(text),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isTablet = screenSize.width > 600;
-    final messageFontSize = isTablet ? 18.0 : 14.0;
-    var scanArea = screenSize.width * (isTablet ? 0.5 : 0.8);
-    scanArea = scanArea > (isTablet ? 450.0 : 300.0)
-        ? (isTablet ? 450.0 : 300.0)
-        : scanArea;
-
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 1,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        centerTitle: true,
-        title: Text(
-          _isLoadingUserData
-              ? _translate('davomat_system_title')
-              : (companyName != null
-                  ? '"$companyName" - ${_translate('davomat_system_title')}'
-                  : _translate('davomat_system_title')),
-          style: TextStyle(
-              fontSize: isTablet ? 20 : 18, fontWeight: FontWeight.bold),
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            tooltip: _translate('about_attendance_system'),
-            onPressed: _showInfoDialog,
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.language),
-            tooltip: "Tilni tanlash",
-            onSelected: (String language) async {
-              await _setLanguagePreference(language);
-              await _loadUserData();
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(value: 'en', child: Text('English')),
-              const PopupMenuItem<String>(value: 'uz', child: Text('O\'zbek')),
-              const PopupMenuItem<String>(value: 'ru', child: Text('Русский')),
-            ],
-          ),
+          if (message.isNotEmpty)
+            Container(
+              margin: EdgeInsets.all(20),
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _getMessageColor().withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _getMessageColor().withOpacity(0.3)),
+              ),
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: _getMessageColor(),
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const SizedBox(height: 10),
-                if (_isLoadingUserData)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Text(
-                      _translate('welcome_message'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: isTablet ? 28.0 : 24.0,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (message.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 15.0),
-                      child: Container(
-                        // Corrected the conditional logic for color
-                        decoration: BoxDecoration(
-                            color: (message.contains(_translate('error')) ||
-                                    message.contains(_translate('blocked')) ||
-                                    message.contains(
-                                        'Xatolik') || // Assuming 'Xatolik' is an error term
-                                    message ==
-                                        _translate('fake_location_detected') ||
-                                    message ==
-                                        _translate(
-                                            'camera_location_permission_denied') ||
-                                    message ==
-                                        _translate(
-                                            'location_data_not_loaded') ||
-                                    message ==
-                                        _translate('no_internet_for_data'))
-                                ? Colors.red[100]
-                                : (message == _translate('arrival_saved') ||
-                                        message ==
-                                            _translate('departure_saved'))
-                                    ? Colors.green[100]
-                                    : Colors.blue[100],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: (message.contains(_translate('error')) ||
-                                        message
-                                            .contains(_translate('blocked')) ||
-                                        message.contains('Xatolik') ||
-                                        message ==
-                                            _translate(
-                                                'fake_location_detected') ||
-                                        message ==
-                                            _translate(
-                                                'camera_location_permission_denied') ||
-                                        message ==
-                                            _translate(
-                                                'location_data_not_loaded') ||
-                                        message ==
-                                            _translate('no_internet_for_data'))
-                                    ? Colors.red[300]!
-                                    : (message == _translate('arrival_saved') ||
-                                            message ==
-                                                _translate('departure_saved'))
-                                        ? Colors.green[300]!
-                                        : Colors.blue[300]!,
-                                width: 1)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        child: Text(
-                          message,
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: messageFontSize,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 10),
-                  _buildQrView(context, scanArea),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.refresh, size: 20),
-                        label: Text(_translate('refresh')),
-                        onPressed: _resetScanner,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                        ),
-                      ),
-                      IconButton(
-                        icon:
-                            Icon(isFlashOn ? Icons.flash_on : Icons.flash_off),
-                        tooltip: isFlashOn
-                            ? "Chiroqni o'chirish"
-                            : "Chiroqni yoqish",
-                        iconSize: 30,
-                        color: Colors.black54,
-                        style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[200],
-                            padding: const EdgeInsets.all(12)),
-                        onPressed: () async {
-                          if (controller != null) {
-                            try {
-                              await controller?.toggleFlash();
-                              bool? flashStatus =
-                                  await controller?.getFlashStatus();
-                              if (mounted)
-                                setState(
-                                    () => isFlashOn = flashStatus ?? false);
-                            } catch (e) {
-                              print("Error toggling flash: $e");
-                            }
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 30),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -962,18 +619,17 @@ class _HomePageState extends State<HomePage> {
         width: scanArea,
         height: scanArea,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           color: Colors.black,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           child: QRView(
             key: qrKey,
             onQRViewCreated: _onQRViewCreated,
-            onPermissionSet: (ctrl, p) => _onPermissionSet(context, ctrl, p),
             overlay: QrScannerOverlayShape(
-              borderColor: Colors.lightGreenAccent,
-              borderRadius: 12,
+              borderColor: primaryColor,
+              borderRadius: 20,
               borderLength: 40,
               borderWidth: 8,
               cutOutSize: scanArea * 0.85,
@@ -987,79 +643,746 @@ class _HomePageState extends State<HomePage> {
   void _onQRViewCreated(QRViewController newController) {
     setState(() {
       controller = newController;
-      _isCameraPaused = false; // Initially not paused
+      _isCameraPaused = false;
     });
-    controller?.resumeCamera(); // Ensure camera starts
-    _isCameraPaused = false;
 
-    StreamSubscription? scanSubscription;
-    scanSubscription = controller?.scannedDataStream.listen((scanData) async {
-      if (_isCameraPaused) return; // Don't process if already paused/processing
+    controller?.scannedDataStream.listen((scanData) async {
+      if (_isCameraPaused) return;
 
       await controller?.pauseCamera();
       _isCameraPaused = true;
-      print("QR Detected: ${scanData.code}. Camera paused.");
 
       if (mounted) {
         setState(() => result = scanData);
         await _handleScanLogic(scanData.code ?? '');
-
-        bool shouldResume = true;
-        if (message == _translate('fake_location_detected') ||
-            message == _translate('blocked')) {
-          shouldResume = false;
-        }
-
-        if (shouldResume && mounted) {
-          Future.delayed(const Duration(seconds: 3), () {
-            if (mounted && controller != null && _isCameraPaused) {
-              // Resume only if it was paused
-              print("Resuming camera after processing.");
-              controller?.resumeCamera();
-              _isCameraPaused = false;
-              if (mounted)
-                setState(() {
-                  message = '';
-                });
-            }
-          });
-        } else if (!shouldResume) {
-          print("Camera remains paused.");
-        }
-      } else {
-        await scanSubscription?.cancel();
       }
-    }, onError: (error) {
-      print("Error on scannedDataStream: $error");
     });
   }
 
-  void _onPermissionSet(BuildContext context, QRViewController ctrl, bool p) {
-    print('${DateTime.now().toIso8601String()}_onPermissionSet $p');
-    if (!p) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(_translate('camera_location_permission_denied'))),
-        );
-      }
-    } else {
-      ctrl.resumeCamera();
-      _isCameraPaused = false;
+  Future<void> _handleScanLogic(String data) async {
+    if (!_isSubscriptionActive) {
+      if (mounted) setState(() => message = _translate('subscription_expired'));
+      return;
     }
+
+    if (data.isEmpty) return;
+
+    if (mounted) setState(() => message = _translate('checking'));
+
+    try {
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser == null) return;
+
+      final today = DateTime.now().toLocal().toString().split(' ')[0];
+      final now = DateTime.now().toLocal().toIso8601String();
+
+      final companyData = await supabase
+          .from('users')
+          .select('company_id')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+      final companyId = companyData?['company_id'];
+      if (companyId == null) return;
+
+      final existingAttendance = await supabase
+          .from('davomat')
+          .select()
+          .eq('xodim_id', currentUser.id)
+          .eq('kelish_sana', today)
+          .eq('company_id', companyId)
+          .maybeSingle();
+
+      String finalMessage = _attendanceMessage;
+      if (_enableAttendanceMessage && _attendanceMessage.isNotEmpty) {
+        finalMessage = _attendanceMessage;
+      }
+
+      if (data == kelishQrCode) {
+        if (existingAttendance == null) {
+          await supabase.from('davomat').insert({
+            'xodim_id': currentUser.id,
+            'kelish_sana': today,
+            'kelish_vaqti': now,
+            'company_id': companyId,
+            if (finalMessage.isNotEmpty) 'message': finalMessage,
+          });
+          if (mounted) setState(() => message = _translate('arrival_saved'));
+          await _loadAttendanceData();
+        } else {
+          if (mounted)
+            setState(() => message = _translate('already_marked_arrival'));
+        }
+      } else if (data == ketishQrCode) {
+        if (existingAttendance != null) {
+          if (existingAttendance['ketish_vaqti'] == null) {
+            await supabase.from('davomat').update({
+              'ketish_vaqti': now,
+              if (finalMessage.isNotEmpty) 'message': finalMessage,
+            }).eq('id', existingAttendance['id']);
+            if (mounted)
+              setState(() => message = _translate('departure_saved'));
+            await _loadAttendanceData();
+          } else {
+            if (mounted)
+              setState(() => message = _translate('already_marked_departure'));
+          }
+        } else {
+          if (mounted)
+            setState(() => message = _translate('mark_arrival_first'));
+        }
+      } else {
+        if (mounted) setState(() => message = _translate('wrong_qr_code'));
+      }
+    } catch (e) {
+      print("Error in scan logic: $e");
+      if (mounted) setState(() => message = 'Error: ${e.toString()}');
+    }
+
+    // Auto-resume camera after 3 seconds
+    Future.delayed(Duration(seconds: 3), () {
+      if (mounted && controller != null && _isCameraPaused) {
+        controller!.resumeCamera();
+        _isCameraPaused = false;
+        setState(() => message = '');
+      }
+    });
+  }
+
+  Color _getMessageColor() {
+    if (message.contains('Error') ||
+        message == _translate('subscription_expired')) {
+      return errorColor;
+    } else if (message == _translate('arrival_saved') ||
+        message == _translate('departure_saved')) {
+      return successColor;
+    } else {
+      return warningColor;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        child: _isLoadingUserData
+            ? Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
+              )
+            : SingleChildScrollView(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildUserHeader(),
+                    SizedBox(height: 24),
+                    _buildSubscriptionStatus(),
+                    SizedBox(height: 24),
+                    _buildQRScanButton(),
+                    SizedBox(height: 24),
+                    if (_showTodayCard) ...[
+                      _buildTodayAttendanceCard(),
+                      SizedBox(height: 24),
+                    ],
+                    if (_showCalendar) ...[
+                      _buildAttendanceCalendar(),
+                      SizedBox(height: 24),
+                    ],
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildUserHeader() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, secondaryColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: userProfileImage != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      userProfileImage!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildDefaultAvatar(),
+                    ),
+                  )
+                : _buildDefaultAvatar(),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  userName ?? 'User',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: textPrimary,
+                  ),
+                ),
+                if (userPosition != null) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    userPosition!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textSecondary,
+                    ),
+                  ),
+                ],
+                SizedBox(height: 8),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    DateFormat('dd MMMM yyyy', _currentLanguage)
+                        .format(DateTime.now()),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: primaryColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDefaultAvatar() {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primaryColor, secondaryColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(
+        CupertinoIcons.person_fill,
+        color: Colors.white,
+        size: 28,
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionStatus() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _isSubscriptionActive
+                  ? successColor.withOpacity(0.1)
+                  : errorColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _isSubscriptionActive
+                  ? CupertinoIcons.checkmark_circle_fill
+                  : CupertinoIcons.xmark_circle_fill,
+              color: _isSubscriptionActive ? successColor : errorColor,
+              size: 20,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _translate('subscription_status'),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textSecondary,
+                  ),
+                ),
+                Text(
+                  _subscriptionStatus,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _isSubscriptionActive ? successColor : errorColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTodayAttendanceCard() {
+    final today = DateTime.now();
+    final todayKey = DateTime(today.year, today.month, today.day);
+    final todayAttendance = _attendanceDetails[todayKey];
+
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  CupertinoIcons.clock,
+                  color: primaryColor,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                _translate('today_attendance'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildAttendanceTimeCard(
+                  icon: CupertinoIcons.arrow_down_circle_fill,
+                  label: _translate('arrival_time'),
+                  time: todayAttendance?['arrival_time'] != null
+                      ? DateFormat('HH:mm').format(
+                          DateTime.parse(todayAttendance!['arrival_time']))
+                      : _translate('not_recorded'),
+                  color: successColor,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildAttendanceTimeCard(
+                  icon: CupertinoIcons.arrow_up_circle_fill,
+                  label: _translate('departure_time'),
+                  time: todayAttendance?['departure_time'] != null
+                      ? DateFormat('HH:mm').format(
+                          DateTime.parse(todayAttendance!['departure_time']))
+                      : _translate('not_recorded'),
+                  color: warningColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendanceTimeCard({
+    required IconData icon,
+    required String label,
+    required String time,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 24),
+          SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: textSecondary,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            time,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendanceCalendar() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  CupertinoIcons.calendar,
+                  color: primaryColor,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                _translate('attendance_calendar'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          TableCalendar<DateTime>(
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            eventLoader: (day) {
+              final normalizedDay = DateTime(day.year, day.month, day.day);
+              return _attendanceDays
+                  .where((attendanceDay) =>
+                      isSameDay(attendanceDay, normalizedDay))
+                  .toList();
+            },
+            startingDayOfWeek: StartingDayOfWeek.monday,
+            calendarStyle: CalendarStyle(
+              outsideDaysVisible: false,
+              weekendTextStyle: TextStyle(color: textSecondary),
+              holidayTextStyle: TextStyle(color: textSecondary),
+              defaultTextStyle: TextStyle(color: textPrimary),
+              selectedDecoration: BoxDecoration(
+                color: primaryColor,
+                shape: BoxShape.circle,
+              ),
+              todayDecoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              markerDecoration: BoxDecoration(
+                color: successColor,
+                shape: BoxShape.circle,
+              ),
+              markersMaxCount: 1,
+            ),
+            headerStyle: HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+              titleTextStyle: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
+              leftChevronIcon: Icon(
+                CupertinoIcons.chevron_left,
+                color: primaryColor,
+              ),
+              rightChevronIcon: Icon(
+                CupertinoIcons.chevron_right,
+                color: primaryColor,
+              ),
+            ),
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+              _showAttendanceDetails(selectedDay);
+            },
+            onPageChanged: (focusedDay) {
+              setState(() {
+                _focusedDay = focusedDay;
+              });
+              _loadAttendanceData();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAttendanceDetails(DateTime selectedDay) {
+    final normalizedDay =
+        DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+    final attendanceDetail = _attendanceDetails[normalizedDay];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              DateFormat('dd MMMM yyyy', _currentLanguage).format(selectedDay),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
+            ),
+            SizedBox(height: 16),
+            if (attendanceDetail != null) ...[
+              _buildDetailRow(
+                icon: CupertinoIcons.arrow_down_circle_fill,
+                label: _translate('arrival_time'),
+                value: attendanceDetail['arrival_time'] != null
+                    ? DateFormat('HH:mm').format(
+                        DateTime.parse(attendanceDetail['arrival_time']))
+                    : _translate('not_recorded'),
+                color: successColor,
+              ),
+              SizedBox(height: 12),
+              _buildDetailRow(
+                icon: CupertinoIcons.arrow_up_circle_fill,
+                label: _translate('departure_time'),
+                value: attendanceDetail['departure_time'] != null
+                    ? DateFormat('HH:mm').format(
+                        DateTime.parse(attendanceDetail['departure_time']))
+                    : _translate('not_recorded'),
+                color: warningColor,
+              ),
+            ] else ...[
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(CupertinoIcons.xmark_circle, color: Colors.grey[600]),
+                    SizedBox(width: 12),
+                    Text(
+                      _translate('absent'),
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: textSecondary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQRScanButton() {
+    return GestureDetector(
+      onTap: _showQRScanner,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: _isSubscriptionActive
+              ? LinearGradient(
+                  colors: [primaryColor, secondaryColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [Colors.grey, Colors.grey.shade400],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: _isSubscriptionActive
+                  ? primaryColor.withOpacity(0.3)
+                  : Colors.grey.withOpacity(0.3),
+              blurRadius: 15,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              CupertinoIcons.qrcode_viewfinder,
+              color: Colors.white,
+              size: 28,
+            ),
+            SizedBox(width: 12),
+            Text(
+              _isSubscriptionActive
+                  ? _translate('scan_qr_code')
+                  : _translate('subscription_expired'),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
     controller?.dispose();
     super.dispose();
-  }
-}
-
-extension ParseToString on double {
-  LocationAccuracy toLocationAccuracy() {
-    if (this <= 10) return LocationAccuracy.high;
-    if (this <= 100) return LocationAccuracy.medium;
-    return LocationAccuracy.low;
   }
 }

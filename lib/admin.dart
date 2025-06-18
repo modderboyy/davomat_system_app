@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' as platform_io;
+import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,9 +12,11 @@ import 'package:flutter/services.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'dart:convert';
-
+import 'admin_user_search.dart';
+import 'app_bar/admin_info_custom_appbar.dart';
 import 'apps.dart';
 import 'webview_page.dart';
+import 'widgets/custom_bottom_nav.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({Key? key}) : super(key: key);
@@ -192,6 +195,14 @@ class _AdminPageState extends State<AdminPage> {
       'error_fetching_transactions': 'Ошибка загрузки транзакций: {error}',
     },
   };
+
+  String _infoFilter = 'Barchasi';
+  final List<String> _infoFilterOptions = [
+    'Barchasi',
+    'Xodimlar',
+    'Balans',
+    'Tarix'
+  ];
 
   String _translate(String key, [Map<String, dynamic>? params]) {
     final langKey =
@@ -725,185 +736,345 @@ class _AdminPageState extends State<AdminPage> {
         : 0;
 
     if (_isLoading && _companyName == null && _userEmail == null) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Blurred glassmorphism container
+    Widget glassCard({required Widget child, List<Color>? colors}) {
+      return Container(
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: Color(0xFF8811F7), // Zaxira holatida to‘liq rang
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF8811F7), // Asosiy binafsha
+                Color(0xFF5A0EBB), // Pastga qarab to‘qroq
+                Color(0xFF2F0A6B), // Yana chuqurroq fon
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.15), // Chegara nozik va shaffof
+              width: 1.4,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    Color(0xFF8811F7).withOpacity(0.35), // Yengil nur effekti
+                blurRadius: 18,
+                spreadRadius: 1,
+                offset: Offset(0, 6),
+              ),
+              BoxShadow(
+                color: Colors.black
+                    .withOpacity(0.2), // Pastdan tushadigan chuqur soya
+                blurRadius: 24,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05), // Shaffof yarim oq fon
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.18),
+                    width: 1.4,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 30,
+                      offset: Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: child,
+              ),
+            ),
+          ));
     }
 
     return RefreshIndicator(
       onRefresh: _fetchAdminData,
-      color: theme.primaryColor,
+      color: Colors.white,
+      backgroundColor: const Color(0xFF8811F7), // Purple background for refresh
+      displacement: 70,
+      strokeWidth: 2.8,
+      triggerMode: RefreshIndicatorTriggerMode.anywhere,
       child: ListView(
         padding: const EdgeInsets.all(16.0),
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics()),
         children: [
-          Card(
-            elevation: 2,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                          child: Text('${_translate('company_name')}:',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                  color: theme.colorScheme.secondary))),
-                      if (_isLoading && _companyName == null)
-                        const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
-                    ],
+          // Company & Balance glass card
+          glassCard(
+            colors: [
+              const Color(0xFF43CEA2).withOpacity(0.5),
+              const Color(0xFF185A9D).withOpacity(0.3)
+            ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_translate('company_name'),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+                Text(
+                  _companyName ?? (_isLoading ? _translate('loading') : 'N/A'),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  Text(
-                      _companyName ??
-                          (_isLoading ? _translate('loading') : 'N/A'),
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  Text(_translate('balance'),
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(color: theme.colorScheme.secondary)),
-                  const SizedBox(height: 4),
-                  Text('\$${_balance.toStringAsFixed(2)}',
-                      style: theme.textTheme.headlineSmall?.copyWith(
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet_outlined,
+                        color: Colors.greenAccent, size: 28),
+                    const SizedBox(width: 10),
+                    Text(_translate('balance'),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: Colors.white)),
+                    const Spacer(),
+                    Text('\$${_balance.toStringAsFixed(2)}',
+                        style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: _balance >= 0
-                              ? Colors.green.shade700
-                              : Colors.red.shade700)),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  Text(_translate('employees'),
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(color: theme.colorScheme.secondary)),
-                  const SizedBox(height: 4),
-                  Text(
-                      _translate('total_employees', {
-                        'count': _isLoading &&
-                                _employeeCount == 0 &&
-                                _companyId != null
-                            ? _translate('loading')
-                            : _employeeCount.toString()
-                      }),
-                      style: theme.textTheme.titleMedium),
-                  Text(
-                      _translate(
-                          'free_employees', {'count': _freeEmployeeLimit}),
-                      style: theme.textTheme.bodyMedium),
-                  Text(_translate('paid_employees', {'count': paidEmployees}),
-                      style: theme.textTheme.bodyMedium),
-                  Text(
-                      _translate('cost_per_additional_employee',
-                          {'cost': _costPerExtraEmployee.toStringAsFixed(2)}),
-                      style: theme.textTheme.bodyMedium),
-                  const SizedBox(height: 8),
-                  Text(
+                              ? Colors.greenAccent
+                              : Colors.redAccent,
+                        )),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.people_alt_rounded,
+                        color: Colors.blueAccent, size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                        _translate('total_employees', {'count': ''})
+                            .replaceAll(': {count}', ''),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: Colors.white)),
+                    const Spacer(),
+                    Text(_employeeCount.toString(),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold, color: Colors.white)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _translate('free_employees', {'count': _freeEmployeeLimit}),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.white70),
+                ),
+                Text(
+                  _translate('paid_employees', {'count': paidEmployees}),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.white70),
+                ),
+                Text(
+                  _translate('cost_per_additional_employee',
+                      {'cost': _costPerExtraEmployee.toStringAsFixed(2)}),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.white70),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.calculate_outlined,
+                        color: Colors.purpleAccent, size: 20),
+                    const SizedBox(width: 5),
+                    Text(
                       _translate('monthly_cost',
                           {'cost': monthlyCost.toStringAsFixed(2)}),
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w500)),
-                  if (monthlyCost > _balance &&
-                      _employeeCount > _freeEmployeeLimit)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                          _translate('insufficient_balance_for_new_employee'),
-                          style: TextStyle(
-                              color: Colors.red.shade700,
-                              fontStyle: FontStyle.italic)),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.white, fontWeight: FontWeight.w500),
                     ),
-                  const SizedBox(height: 12),
-                  Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                          _translate('last_updated_data',
-                              {'datetime': formattedUpdateDate}),
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.grey[600]),
-                          overflow: TextOverflow.ellipsis)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
-            label: Text(_translate('deposit_funds'),
-                style: const TextStyle(fontSize: 16)),
-            onPressed: (_isLoading && _companyId == null) || _companyId == null
-                ? null
-                : _openDepositFundsInWebview,
-            style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 24),
-          // Tranzaksiyalar tarixi
-          Text(_translate('transactions_history'),
-              style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.primaryColor, fontWeight: FontWeight.bold)),
-          const Divider(thickness: 1.5, height: 20),
-          _isLoading &&
-                  _transactions.isEmpty &&
-                  _companyId !=
-                      null // Faqat kompaniya ID mavjud bo'lganda va yuklanayotganda loader
-              ? Center(
-                  child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: CircularProgressIndicator()))
-              : _transactions.isEmpty
-                  ? Center(
-                      child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(_translate('no_transactions_found'),
-                              style: TextStyle(color: Colors.grey[600]))))
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _transactions.length,
-                      itemBuilder: (context, index) {
-                        return _buildTransactionItem(_transactions[index]);
-                      },
+                  ],
+                ),
+                if (monthlyCost > _balance &&
+                    _employeeCount > _freeEmployeeLimit)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _translate('insufficient_balance_for_new_employee'),
+                      style: const TextStyle(
+                          color: Colors.yellowAccent,
+                          fontStyle: FontStyle.italic),
                     ),
-
-          const SizedBox(height: 24),
-          Card(
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                      child: Text(_translate('admin_panel_login'),
-                          style: theme.textTheme.titleMedium)),
-                  ElevatedButton.icon(
-                    onPressed: _showAdminCredentialsDialog,
-                    icon: const Icon(Icons.login, size: 18),
-                    label: Text(_translate('open')),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueGrey.shade700,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        textStyle: const TextStyle(fontSize: 14)),
                   ),
-                ],
-              ),
+                const SizedBox(height: 10),
+                Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                        _translate('last_updated_data',
+                            {'datetime': formattedUpdateDate}),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: Colors.white70),
+                        overflow: TextOverflow.ellipsis)),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Center(
-              child: Text('Powered by Supabase',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.grey[500]))),
-          const SizedBox(height: 40),
+          glassCard(
+            colors: [
+              const Color(0xFFff512f).withOpacity(0.35),
+              const Color(0xFFdd2476).withOpacity(0.25),
+            ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Admin Panel',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final result = await showDialog<String>(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            return AlertDialog(
+                              title: const Text('Kirishga ruxsat berilsinmi?'),
+                              content: const Text(
+                                  'Web App ichida ochilsinmi yoki tashqi browserda?'),
+                              actions: <Widget>[
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop('web'),
+                                  child: const Text('Web App ichida'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(dialogContext)
+                                      .pop('browser'),
+                                  child: const Text('Tashqi browser'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        if (result == 'web') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const InAppWebViewPage(
+                                url: 'https://davomat.modderboy.uz',
+                                title: 'Davomat - Admin paneli',
+                                currentLanguage: 'uz',
+                              ),
+                            ),
+                          );
+                        } else if (result == 'browser') {
+                          final url =
+                              Uri.parse('https://davomat.modderboy.uz/');
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(url,
+                                mode: LaunchMode.externalApplication);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('URL ochib bo‘lmadi')),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white10,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text(
+                        'Kirish',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                // Bu yerga boshqa kontent joylashadi, hozircha placeholder
+              ],
+            ),
+          ),
+          // Transactions glass card
+          glassCard(
+            colors: [
+              const Color(0xFFff512f).withOpacity(0.35),
+              const Color(0xFFdd2476).withOpacity(0.25)
+            ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_translate('transactions_history'),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    )),
+                const Divider(thickness: 1, height: 24, color: Colors.white38),
+                _isLoading && _transactions.isEmpty && _companyId != null
+                    ? const Center(
+                        child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: CircularProgressIndicator()))
+                    : _transactions.isEmpty
+                        ? Text(_translate('no_transactions_found'),
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 15))
+                        : Column(
+                            children: _transactions
+                                .take(5)
+                                .map((tr) => ListTile(
+                                      leading: Icon(
+                                          tr['transaction_type'] == 'deposit'
+                                              ? Icons.arrow_downward_rounded
+                                              : Icons.arrow_upward_rounded,
+                                          color: tr['transaction_type'] ==
+                                                  'deposit'
+                                              ? Colors.greenAccent
+                                              : Colors.redAccent,
+                                          size: 26),
+                                      title: Text(
+                                        tr['transaction_type'] ?? '',
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      subtitle: Text(
+                                        tr['description'] ?? '',
+                                        style: const TextStyle(
+                                            color: Colors.white70),
+                                      ),
+                                      trailing: Text(
+                                        tr['amount'] != null
+                                            ? '\$${tr['amount']}'
+                                            : '',
+                                        style: TextStyle(
+                                          color: tr['transaction_type'] ==
+                                                  'deposit'
+                                              ? Colors.greenAccent
+                                              : Colors.redAccent,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ))
+                                .toList(),
+                          ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -911,77 +1082,289 @@ class _AdminPageState extends State<AdminPage> {
 
   Widget _buildInfoContent() {
     final theme = Theme.of(context);
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final filterOptions = ['Barchasi', 'Xodimlar', 'Balans', 'Tarix'];
+    String _infoFilter = 'Barchasi';
 
-    if (_isLoading && _companyName == null && _userEmail == null) {
-      return Center(child: CircularProgressIndicator());
+    Widget glassInfoCard({required Widget child, List<Color>? colors}) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF8811F7), // Asosiy binafsha
+              Color(0xFF5A0EBB), // Pastga qarab to‘qroq
+              Color(0xFF2F0A6B), // Yana chuqurroq fon
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.15), // Chegara nozik va shaffof
+            width: 1.4,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0xFF8811F7).withOpacity(0.35), // Yengil nur effekti
+              blurRadius: 18,
+              spreadRadius: 1,
+              offset: Offset(0, 6),
+            ),
+            BoxShadow(
+              color: Colors.black
+                  .withOpacity(0.2), // Pastdan tushadigan chuqur soya
+              blurRadius: 24,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                    color: Colors.white.withOpacity(0.14), width: 1.2),
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      );
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        Text(_translate('general_info'),
-            style: theme.textTheme.titleLarge
-                ?.copyWith(color: theme.primaryColor)),
-        const Divider(thickness: 1, height: 20),
-        _buildInfoTile(
-            icon: Icons.business_outlined,
-            title: _translate('company_name'),
-            subtitle:
-                _companyName ?? (_isLoading ? _translate('loading') : 'N/A')),
-        _buildInfoTile(
-            icon: Icons.alternate_email_outlined,
-            title: _translate('user_email'),
-            subtitle:
-                _userEmail ?? (_isLoading ? _translate('loading') : 'N/A'),
-            canCopy: true),
-        _buildInfoTile(
-            icon: Icons.perm_identity_outlined,
-            title: 'User ID',
-            subtitle: _userId ?? (currentUser?.id ?? 'N/A')),
-        _buildInfoTile(
-            icon: Icons.confirmation_number_outlined,
-            title: _translate('company_id'),
-            subtitle: _companyId ?? 'N/A',
-            canCopy: true),
-        const SizedBox(height: 24),
-        Text(_translate('employees'),
-            style: theme.textTheme.titleLarge
-                ?.copyWith(color: theme.primaryColor)),
-        const Divider(thickness: 1, height: 20),
-        _buildInfoTile(
-            icon: Icons.people_outline,
-            title: _translate('total_employees', {'count': ''})
-                .replaceAll(': {count}', ''),
-            subtitle: _isLoading && _employeeCount == 0 && _companyId != null
-                ? _translate('loading')
-                : _employeeCount.toString()),
-        _buildInfoTile(
-            icon: Icons.money_off_csred_outlined,
-            title: _translate('free_employees', {'count': ''})
-                .replaceAll(': {count}', ''),
-            subtitle: _freeEmployeeLimit.toString()),
-        _buildInfoTile(
-            icon: Icons.monetization_on_outlined,
-            title: _translate('paid_employees', {'count': ''})
-                .replaceAll(': {count}', ''),
-            subtitle: (_employeeCount > _freeEmployeeLimit
-                    ? _employeeCount - _freeEmployeeLimit
-                    : 0)
-                .toString()),
-        _buildInfoTile(
-            icon: Icons.price_change_outlined,
-            title: _translate('cost_per_additional_employee', {'cost': ''})
-                .replaceAll(': \${cost}/month', ''),
-            subtitle:
-                '\$${_costPerExtraEmployee.toStringAsFixed(2)} / ${_translate('months')}'),
-        _buildInfoTile(
-            icon: Icons.request_quote_outlined,
-            title: _translate('monthly_cost', {'cost': ''})
-                .replaceAll(': \${cost}', ''),
-            subtitle: '\$${_calculateMonthlyCost().toStringAsFixed(2)}'),
-        const SizedBox(height: 20),
-      ],
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return RefreshIndicator(
+          onRefresh: _fetchAdminData,
+          color: Colors.white,
+          backgroundColor: const Color(0xFF5B07E3),
+          displacement: 70,
+          strokeWidth: 2.5,
+          child: Column(
+            children: [
+              // Glass Gradient Filter AppBar
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xff5108c8),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(20)),
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF8811F7), // Asosiy binafsha
+                      Color(0xFF5A0EBB), // Pastga qarab to‘qroq
+                      Color(0xFF2F0A6B), // Yana chuqurroq fon
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: Colors.white
+                        .withOpacity(0.15), // Chegara nozik va shaffof
+                    width: 1.4,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFF8811F7)
+                          .withOpacity(0.35), // Yengil nur effekti
+                      blurRadius: 18,
+                      spreadRadius: 1,
+                      offset: Offset(0, 6),
+                    ),
+                    BoxShadow(
+                      color: Colors.black
+                          .withOpacity(0.2), // Pastdan tushadigan chuqur soya
+                      blurRadius: 24,
+                      offset: Offset(0, 12),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.only(
+                    top: 36, left: 16, right: 16, bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.info_outline,
+                            color: Colors.white, size: 26),
+                        const SizedBox(width: 8),
+                        Text(
+                          _translate('general_info'),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 22,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const Spacer(),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 40,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: filterOptions.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 10),
+                        itemBuilder: (context, i) {
+                          final isSelected = filterOptions[i] == _infoFilter;
+                          return GestureDetector(
+                            onTap: () =>
+                                setState(() => _infoFilter = filterOptions[i]),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white.withOpacity(0.25),
+                                  width: isSelected ? 1.8 : 1,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.white.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        )
+                                      ]
+                                    : [],
+                              ),
+                              child: Text(
+                                filterOptions[i],
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? const Color(0xFF5B07E3)
+                                      : Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Main Content - unchanged logic, retains design
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics()),
+                  children: [
+                    if (_infoFilter == 'Barchasi' || _infoFilter == 'Xodimlar')
+                      glassInfoCard(
+                        colors: [
+                          const Color(0xff5b07e3),
+                          const Color(0xFF3B0CA9),
+                        ],
+                        child: ListTile(
+                          leading: const Icon(Icons.people_outline,
+                              color: Colors.white70, size: 30),
+                          title: Text(_translate('employees'),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          subtitle: Text(_employeeCount.toString(),
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 16)),
+                        ),
+                      ),
+                    if (_infoFilter == 'Barchasi' || _infoFilter == 'Balans')
+                      glassInfoCard(
+                        colors: [
+                          const Color(0xff5b07e3),
+                          const Color(0xFF3B0CA9),
+                        ],
+                        child: ListTile(
+                          leading: const Icon(
+                              Icons.account_balance_wallet_outlined,
+                              color: Colors.amberAccent,
+                              size: 30),
+                          title: Text(_translate('balance'),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                          subtitle: Text('\$${_balance.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 16)),
+                        ),
+                      ),
+                    if (_infoFilter == 'Barchasi' || _infoFilter == 'Tarix')
+                      glassInfoCard(
+                        colors: [
+                          const Color(0xff5b07e3),
+                          const Color(0xFF3B0CA9),
+                        ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.history,
+                                  color: Colors.white70, size: 30),
+                              title: Text(_translate('transactions_history'),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold)),
+                              subtitle: _transactions.isEmpty
+                                  ? Text(_translate('no_transactions_found'),
+                                      style: const TextStyle(
+                                          color: Colors.white70))
+                                  : null,
+                            ),
+                            ..._transactions.map((tr) => ListTile(
+                                  leading: Icon(
+                                      tr['transaction_type'] == 'deposit'
+                                          ? Icons.arrow_downward_rounded
+                                          : Icons.arrow_upward_rounded,
+                                      color: tr['transaction_type'] == 'deposit'
+                                          ? Colors.greenAccent
+                                          : Colors.redAccent,
+                                      size: 26),
+                                  title: Text('${tr['transaction_type'] ?? ''}',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
+                                  subtitle: Text('${tr['description'] ?? ''}',
+                                      style: const TextStyle(
+                                          color: Colors.white70)),
+                                  trailing: Text(
+                                    tr['amount'] != null
+                                        ? '\$${tr['amount']}'
+                                        : '',
+                                    style: TextStyle(
+                                      color: tr['transaction_type'] == 'deposit'
+                                          ? Colors.greenAccent
+                                          : Colors.redAccent,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                )),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1035,50 +1418,17 @@ class _AdminPageState extends State<AdminPage> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = <Widget>[
-      _buildAdminContent(),
+      AdminUserSearchAppBar(adminContent: _buildAdminContent()),
       _buildInfoContent(),
-      const AppsPage(),
     ];
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_translate('admin_panel_title')),
-        elevation: 1,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.translate_outlined),
-            tooltip: 'Tilni tanlash',
-            onSelected: _setLanguagePreference,
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(value: 'en', child: Text('English')),
-              const PopupMenuItem<String>(value: 'uz', child: Text("O'zbek")),
-              const PopupMenuItem<String>(value: 'ru', child: Text('Русский')),
-            ],
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: IndexedStack(index: _selectedIndex, children: pages),
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-              icon: const Icon(Icons.home_filled), label: _translate('home')),
-          BottomNavigationBarItem(
-              icon: const Icon(Icons.info_outline), label: _translate('info')),
-          BottomNavigationBarItem(
-              icon: const Icon(Icons.apps_outlined), label: _translate('apps')),
-        ],
+      bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey.shade600,
-        showUnselectedLabels: true,
         onTap: (index) {
           if (mounted) setState(() => _selectedIndex = index);
         },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        elevation: 8.0,
+        translate: _translate,
       ),
     );
   }

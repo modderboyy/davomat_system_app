@@ -1,10 +1,8 @@
-// --- main.dart --
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:google_nav_bar/google_nav_bar.dart';
-import 'package:line_icons/line_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:math' as math;
@@ -14,15 +12,14 @@ import 'account_page.dart';
 import 'history_page.dart';
 import 'login_page.dart';
 import 'admin.dart';
-import 'webview_page.dart'; // In-app browser uchun
+import 'webview_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  const supabaseUrl = 'https://kkhmbqabryruqxfiascm.supabase.co';
+  const supabaseUrl = 'https://vrvbmrmdcoxotyreevni.supabase.co';
   const supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtraG1icWFicnlydXF4Zmlhc2NtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU5OTQ5OTMsImV4cCI6MjA1MTU3MDk5M30.0YPVTWKG3qMZ7J8twFjKWwVNNqqpz8YX3rkQiAiT2YQ';
-
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZydmJtcm1kY294b3R5cmVldm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxNDIxNzQsImV4cCI6MjA2NTcxODE3NH0.s_hDAQBPV27ikU289eOqPB-Au-M9eulMeqxNu4LMhM8';
   await Supabase.initialize(
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
@@ -50,12 +47,18 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
 
   int _tapCount = 0;
   DateTime? _lastTapTime;
-  String currentAppVersion =
-      '2'; // Hozirgi versiya 1, yangilanishni tekshirish uchun
+  String currentAppVersion = '2';
   String _currentLanguage = 'uz';
 
-  // GlobalKey MaterialApp uchun, bottom sheetni to'g'ri context bilan ko'rsatish uchun
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  // Modern color scheme with the specified purple
+  static const Color primaryColor = Color(0xFF6e38c9);
+  static const Color secondaryColor = Color(0xFF9c6bff);
+  static const Color backgroundColor = Color(0xFFF8F9FA);
+  static const Color cardColor = Colors.white;
+  static const Color textPrimary = Color(0xFF1A1A1A);
+  static const Color textSecondary = Color(0xFF6B7280);
 
   final Map<String, Map<String, String>> _localizedStrings = {
     'en': {
@@ -75,8 +78,8 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
       'app_name': 'Attendance System',
     },
     'uz': {
-      'home_page_nav': 'Bosh sahifa',
-      'history_nav': 'Tarix',
+      'home_page_nav': 'Home',
+      'history_nav': 'History',
       'profile_nav': 'Profil',
       'update_dialog_title': 'Yangi versiya mavjud!',
       'update_dialog_content':
@@ -119,16 +122,9 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
     setState(() => _isLoading = true);
     await _loadPreferences();
     await _checkLoginAndAdminStatus();
-    // _checkAppUpdate() endi _checkLoginAndAdminStatus dan keyin chaqiriladi,
-    // chunki _showUpdateBottomSheet to'g'ri contextga ega bo'lishi kerak.
-    // Agar MaterialApp qurilmagan bo'lsa, showModalBottomSheet xatolik berishi mumkin.
-    // Shuning uchun uni _checkLoginAndAdminStatus tugaganidan keyin chaqiramiz.
     if (mounted) {
       setState(() => _isLoading = false);
-      // Faqatgina MaterialApp qurilganidan so'ng (ya'ni _isLoading false bo'lganda)
-      // yangilanishni tekshirishni boshlaymiz.
       if (!_isLoading) {
-        // Dublikat tekshiruv, lekin zararsiz
         _checkAppUpdate();
       }
     }
@@ -256,7 +252,6 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
     if (triggerLogout) {
       print("Logout triggered by 10 taps.");
       if (navigatorKey.currentContext != null) {
-        // Context mavjudligini tekshirish
         ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
             SnackBar(
                 content: Text(_translate('logout_triggered')),
@@ -272,13 +267,7 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
     try {
       await supabase.auth.signOut();
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      // Barcha kesh ma'lumotlarini tozalash
-      await prefs.clear(); // Yoki faqat keraklilarni:
-      // await prefs.remove('isLoggedIn');
-      // await prefs.remove('isAdmin');
-      // await prefs.remove('userId');
-      // ... boshqa keshlar ...
-
+      await prefs.clear();
       _setLoggedIn(false);
     } catch (error) {
       print('Logout error: $error');
@@ -314,12 +303,9 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   }
 
   Future<void> _checkAppUpdate() async {
-    // Bu funksiya MaterialApp qurilganidan keyin chaqirilishi kerak
     if (navigatorKey.currentContext == null) {
-      // Agar context hali tayyor bo'lmasa, bir oz kutib qayta urinib ko'ramiz
       await Future.delayed(Duration(milliseconds: 500));
-      if (navigatorKey.currentContext == null || !mounted)
-        return; // Agar hali ham yo'q bo'lsa yoki widget yo'q bo'lsa, chiqib ketamiz
+      if (navigatorKey.currentContext == null || !mounted) return;
     }
 
     try {
@@ -350,8 +336,6 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
               highestApplicableUpdate['version_number'] as String;
           final updateLink = highestApplicableUpdate['update_link'] as String?;
           if (updateLink != null) {
-            // Endi WidgetsBinding.instance.addPostFrameCallback kerak emas,
-            // chunki _checkAppUpdate o'zi MaterialApp qurilgandan keyin chaqiriladi.
             if (mounted && navigatorKey.currentContext != null) {
               _showUpdateBottomSheet(latestVersion, updateLink);
             }
@@ -364,18 +348,15 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   }
 
   void _showUpdateBottomSheet(String latestVersion, String updateLink) {
-    // navigatorKey.currentContext orqali to'g'ri contextni olamiz
     if (navigatorKey.currentContext == null || !mounted) return;
 
     showModalBottomSheet(
-      context:
-          navigatorKey.currentContext!, // MaterialApp contextidan foydalanish
+      context: navigatorKey.currentContext!,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
       ),
       builder: (BuildContext errorDialogContext) {
-        // Bu yerda yangi context olinadi
         final theme = Theme.of(errorDialogContext);
         return Padding(
           padding: const EdgeInsets.all(20.0),
@@ -384,7 +365,7 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               Icon(Icons.system_update_alt_rounded,
-                  size: 50, color: theme.primaryColor),
+                  size: 50, color: primaryColor),
               const SizedBox(height: 16),
               Text(
                 _translate('update_dialog_title'),
@@ -406,13 +387,13 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
                   Expanded(
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: theme.primaryColor),
+                        side: BorderSide(color: primaryColor),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0)),
+                            borderRadius: BorderRadius.circular(12.0)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: Text(_translate('update_dialog_later'),
-                          style: TextStyle(color: theme.primaryColor)),
+                          style: TextStyle(color: primaryColor)),
                       onPressed: () => Navigator.of(errorDialogContext).pop(),
                     ),
                   ),
@@ -420,10 +401,10 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.primaryColor,
+                        backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0)),
+                            borderRadius: BorderRadius.circular(12.0)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: Text(_translate('update_dialog_update')),
@@ -443,16 +424,14 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   }
 
   Future<void> _launchUpdateLink(String updateLink) async {
-    // Linklarni InAppWebViewPage orqali ochish
     if (navigatorKey.currentContext == null || !mounted) return;
     Navigator.push(
       navigatorKey.currentContext!,
       MaterialPageRoute(
         builder: (context) => InAppWebViewPage(
           url: updateLink,
-          title: _translate('app_name') +
-              " " +
-              _translate('update_dialog_update'), // Sarlavha
+          title:
+              _translate('app_name') + " " + _translate('update_dialog_update'),
           currentLanguage: _currentLanguage,
         ),
       ),
@@ -479,92 +458,101 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final themeData = ThemeData(
-      primarySwatch: Colors.indigo,
-      scaffoldBackgroundColor: Colors.white,
-      colorScheme: ColorScheme.fromSwatch(
-        primarySwatch: Colors.indigo,
+      primarySwatch: MaterialColor(0xFF6e38c9, {
+        50: Color(0xFFF3EFFF),
+        100: Color(0xFFE1D7FF),
+        200: Color(0xFFC4AFFF),
+        300: Color(0xFFA687FF),
+        400: Color(0xFF8A5FFF),
+        500: Color(0xFF6e38c9),
+        600: Color(0xFF5D2FB3),
+        700: Color(0xFF4C269D),
+        800: Color(0xFF3B1D87),
+        900: Color(0xFF2A1471),
+      }),
+      scaffoldBackgroundColor: backgroundColor,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primaryColor,
         brightness: Brightness.light,
-        backgroundColor: Colors.white,
-      ).copyWith(
-        primary: const Color(0xFF5d1cad),
-        secondary: Colors.deepOrange,
-        surface: Colors.white,
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: Colors.black87,
-        onBackground: Colors.black87,
+        background: backgroundColor,
+        surface: cardColor,
       ),
       visualDensity: VisualDensity.adaptivePlatformDensity,
-      fontFamily: 'SFUIDisplay',
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 1.0,
-        iconTheme: IconThemeData(color: Colors.black54),
+      fontFamily: 'SF Pro Display',
+      appBarTheme: AppBarTheme(
+        backgroundColor: backgroundColor,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: IconThemeData(color: textSecondary),
         titleTextStyle: TextStyle(
-            color: Colors.black87, fontSize: 20, fontWeight: FontWeight.w500),
+          color: textPrimary,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      bottomAppBarTheme:
-          const BottomAppBarTheme(color: Colors.white, elevation: 4.0),
       cardTheme: CardTheme(
-        color: Colors.white,
-        elevation: 2.0,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-        margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        color: cardColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0),
+          side: BorderSide(color: Colors.grey.shade200, width: 1),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       ),
-      textButtonTheme: TextButtonThemeData(
-          style:
-              TextButton.styleFrom(foregroundColor: const Color(0xFF5d1cad))),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF5d1cad),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0)),
-            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16)),
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          elevation: 0,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.grey[100],
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
-              borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
-              borderSide:
-                  BorderSide(color: const Color(0xFF5d1cad), width: 1.5)),
-          hintStyle: TextStyle(color: Colors.grey[500])),
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20.0))),
+        filled: true,
+        fillColor: Colors.grey[50],
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: primaryColor, width: 2.0),
+        ),
+        hintStyle: TextStyle(color: textSecondary),
       ),
     );
 
     return MaterialApp(
-      navigatorKey: navigatorKey, // GlobalKey ni MaterialApp ga berish
+      navigatorKey: navigatorKey,
       title: _translate('app_name'),
       theme: themeData,
       debugShowCheckedModeBanner: false,
       home: Builder(builder: (context) {
-        // Bu Builder kerak emas, chunki navigatorKey ishlatilyapti
         return Scaffold(
+          backgroundColor: backgroundColor,
           body: GestureDetector(
             onTap: _handleTap,
             behavior: HitTestBehavior.translucent,
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                    ),
+                  )
                 : _isLoggedIn
                     ? _isAdmin
-                        ? AdminPage() // AdminPage o'zining til sozlamalarini boshqaradi
-                        : _buildUserInterface(
-                            context) // Bu yerda context Scaffold contexti
-                    : LoginPage(onLoginSuccess: _setLoggedIn),
+                        ? AdminPage()
+                        : _buildUserInterface(context)
+                    : ModernLoginPage(onLoginSuccess: _setLoggedIn),
           ),
         );
       }),
@@ -572,61 +560,131 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   }
 
   Widget _buildUserInterface(BuildContext scaffoldContext) {
-    // Bu context endi Scaffold'niki
     return Column(
       children: [
         Expanded(
           child: _buildPageContent(_currentTab),
         ),
-        Container(
-          decoration: BoxDecoration(
-              color: Theme.of(scaffoldContext).bottomAppBarTheme.color ??
-                  Colors.white,
-              border: Border(
-                  top: BorderSide(color: Colors.grey.shade200, width: 1.0)),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: Offset(0, -2))
-              ]),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 8),
-            child: GNav(
-              rippleColor: Colors.grey[300]!,
-              hoverColor: Colors.grey[100]!,
-              haptic: true,
-              tabBorderRadius: 15,
-              tabActiveBorder: Border.all(
-                  color: Theme.of(scaffoldContext).colorScheme.primary,
-                  width: 1.5),
-              curve: Curves.easeOutExpo,
-              duration: const Duration(milliseconds: 400),
-              gap: 8,
-              color: Colors.grey[600],
-              activeColor: Theme.of(scaffoldContext).colorScheme.primary,
-              iconSize: 24,
-              tabBackgroundColor: Theme.of(scaffoldContext)
-                  .colorScheme
-                  .primary
-                  .withOpacity(0.1),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              tabs: [
-                GButton(
-                    icon: LineIcons.home, text: _translate('home_page_nav')),
-                GButton(
-                    icon: LineIcons.history, text: _translate('history_nav')),
-                GButton(icon: LineIcons.user, text: _translate('profile_nav')),
-              ],
-              selectedIndex: _currentTab,
-              onTabChange: (index) {
-                if (!mounted) return;
-                setState(() => _currentTab = index);
-              },
-            ),
+        _buildModernBottomBar(scaffoldContext),
+      ],
+    );
+  }
+
+  Widget _buildModernBottomBar(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200, width: 1.0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildBottomNavItem(
+                icon: CupertinoIcons.clock,
+                label: _translate('history_nav'),
+                index: 1,
+                isSelected: _currentTab == 1,
+              ),
+              _buildQRButton(context),
+              _buildBottomNavItem(
+                icon: CupertinoIcons.person,
+                label: _translate('profile_nav'),
+                index: 2,
+                isSelected: _currentTab == 2,
+              ),
+            ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required bool isSelected,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        if (index == 0) {
+          setState(() => _currentTab = 0);
+        } else {
+          setState(() => _currentTab = index);
+        }
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color:
+              isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? primaryColor : textSecondary,
+              size: 24,
+            ),
+            SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? primaryColor : textSecondary,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQRButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _currentTab = 0);
+      },
+      child: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [primaryColor, secondaryColor],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: primaryColor.withOpacity(0.3),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Icon(
+          CupertinoIcons.qrcode_viewfinder,
+          color: Colors.white,
+          size: 28,
+        ),
+      ),
     );
   }
 

@@ -1,42 +1,8 @@
-//account_page.dart
-//F7BD41GB7E28HN6S85KZE731 - don't remove
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:DavomatYettilik/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// Modular UI Components (Cards and Buttons) - from your provided code
-class MUILoginCard extends StatelessWidget {
-  final Widget child;
-
-  const MUILoginCard({Key? key, required this.child}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(context).size.width * 0.07,
-          vertical: 24.0,
-        ),
-        child: SingleChildScrollView(
-          child: Card(
-            elevation: 4.0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: child,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-enum FilterType { myself, allEmployees }
+import 'settings_page.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -47,22 +13,42 @@ class AccountPage extends StatefulWidget {
 
 class _AccountPageState extends State<AccountPage> {
   String? userName;
+  String? userEmail;
   String? userRole;
   String? userAvatarUrl;
+  String? companyName;
   String message = '';
-  FilterType _selectedFilter = FilterType.myself;
   List<Map<String, dynamic>> _employees = [];
   bool _isLoadingProfile = false;
   bool _isLoadingEmployees = false;
 
+  // Modern colors
+  static const Color primaryColor = Color(0xFF6e38c9);
+  static const Color secondaryColor = Color(0xFF9c6bff);
+  static const Color backgroundColor = Color(0xFFF8F9FA);
+  static const Color cardColor = Colors.white;
+  static const Color textPrimary = Color(0xFF1A1A1A);
+  static const Color textSecondary = Color(0xFF6B7280);
+
   String _currentLanguage = 'uz';
-  // Language Titles moved to _localizedStringsForAccount
-  final Map<String, Map<String, String>> _localizedStringsForAccount = {
+  final Map<String, Map<String, String>> _localizedStrings = {
     'en': {
-      'account_title': 'Account',
-      'name_surname': 'Name and Surname:',
+      'profile': 'Profile',
+      'loading': 'Loading...',
+      'error_loading_data': 'Error loading data',
+      'company_employees': 'Company Employees',
+      'no_employees': 'No employees found',
+      'settings': 'Settings',
+      'privacy_policy': 'Privacy Policy',
+      'terms_of_service': 'Terms of Service',
+      'rate_us': 'Rate Us',
+      'logout': 'Logout',
+      'version': 'Version',
+      'position': 'Position',
+      'email': 'Email',
+      'company': 'Company',
+      'name_surname': 'Name and Surname',
       'loading_username': 'Loading username...',
-      'position': 'Position:',
       'loading_position': 'Loading position...',
       'error_loading_user_data': 'Error loading user data!',
       'myself': 'Myself',
@@ -74,12 +60,40 @@ class _AccountPageState extends State<AccountPage> {
           'No internet to load employees. Please connect and retry.',
       'no_company_for_employees':
           'Cannot load employees, user not assigned to a company.',
+      'account_title': 'Account',
+      'user_profile': 'User Profile',
+      'personal_info': 'Personal Information',
+      'work_info': 'Work Information',
+      'quick_actions': 'Quick Actions',
+      'app_settings': 'App Settings',
+      'support': 'Support & Feedback',
+      'about_app': 'About App',
+      'contact_admin': 'Contact Administrator',
+      'help_center': 'Help Center',
+      'report_issue': 'Report an Issue',
+      'app_version': 'App Version',
+      'build_number': 'Build Number',
+      'last_updated': 'Last Updated',
+      'developer': 'Developer',
+      'copyright': '© 2024 Modern Attendance System',
     },
     'uz': {
-      'account_title': 'Profil',
-      'name_surname': 'Ism-familiya:',
+      'profile': 'Profil',
+      'loading': 'Yuklanmoqda...',
+      'error_loading_data': 'Ma\'lumotlarni yuklashda xatolik',
+      'company_employees': 'Kompaniya xodimlari',
+      'no_employees': 'Xodimlar topilmadi',
+      'settings': 'Sozlamalar',
+      'privacy_policy': 'Maxfiylik siyosati',
+      'terms_of_service': 'Foydalanish shartlari',
+      'rate_us': 'Baholang',
+      'logout': 'Chiqish',
+      'version': 'Versiya',
+      'position': 'Lavozim',
+      'email': 'Email',
+      'company': 'Kompaniya',
+      'name_surname': 'Ism-familiya',
       'loading_username': 'Foydalanuvchi nomi yuklanmoqda...',
-      'position': 'Lavozim:',
       'loading_position': 'Lavozim yuklanmoqda...',
       'error_loading_user_data':
           'Foydalanuvchi ma\'lumotlarini yuklashda xatolik!',
@@ -94,12 +108,40 @@ class _AccountPageState extends State<AccountPage> {
           'Xodimlarni yuklash uchun internet yo\'q. Iltimos ulaning va qayta urinib ko\'ring.',
       'no_company_for_employees':
           'Xodimlarni yuklab bo\'lmadi, foydalanuvchi kompaniyaga biriktirilmagan.',
+      'account_title': 'Hisob',
+      'user_profile': 'Foydalanuvchi profili',
+      'personal_info': 'Shaxsiy ma\'lumotlar',
+      'work_info': 'Ish ma\'lumotlari',
+      'quick_actions': 'Tezkor amallar',
+      'app_settings': 'Ilova sozlamalari',
+      'support': 'Yordam va fikr-mulohaza',
+      'about_app': 'Ilova haqida',
+      'contact_admin': 'Administrator bilan bog\'lanish',
+      'help_center': 'Yordam markazi',
+      'report_issue': 'Muammo haqida xabar berish',
+      'app_version': 'Ilova versiyasi',
+      'build_number': 'Build raqami',
+      'last_updated': 'Oxirgi yangilanish',
+      'developer': 'Dasturchi',
+      'copyright': '© 2024 Zamonaviy Davomat Tizimi',
     },
     'ru': {
-      'account_title': 'Аккаунт',
-      'name_surname': 'Имя и Фамилия:',
+      'profile': 'Профиль',
+      'loading': 'Загрузка...',
+      'error_loading_data': 'Ошибка загрузки данных',
+      'company_employees': 'Сотрудники компании',
+      'no_employees': 'Сотрудники не найдены',
+      'settings': 'Настройки',
+      'privacy_policy': 'Политика конфиденциальности',
+      'terms_of_service': 'Условия использования',
+      'rate_us': 'Оценить нас',
+      'logout': 'Выйти',
+      'version': 'Версия',
+      'position': 'Должность',
+      'email': 'Email',
+      'company': 'Компания',
+      'name_surname': 'Имя и Фамилия',
       'loading_username': 'Загрузка имени пользователя...',
-      'position': 'Должность:',
       'loading_position': 'Загрузка должности...',
       'error_loading_user_data': 'Ошибка загрузки данных пользователя!',
       'myself': 'Я',
@@ -112,27 +154,35 @@ class _AccountPageState extends State<AccountPage> {
           'Нет интернета для загрузки сотрудников. Пожалуйста, подключитесь и повторите попытку.',
       'no_company_for_employees':
           'Не удается загрузить сотрудников, пользователь не привязан к компании.',
+      'account_title': 'Аккаунт',
+      'user_profile': 'Профиль пользователя',
+      'personal_info': 'Личная информация',
+      'work_info': 'Рабочая информация',
+      'quick_actions': 'Быстрые действия',
+      'app_settings': 'Настройки приложения',
+      'support': 'Поддержка и отзывы',
+      'about_app': 'О приложении',
+      'contact_admin': 'Связаться с администратором',
+      'help_center': 'Центр помощи',
+      'report_issue': 'Сообщить о проблеме',
+      'app_version': 'Версия приложения',
+      'build_number': 'Номер сборки',
+      'last_updated': 'Последнее обновление',
+      'developer': 'Разработчик',
+      'copyright': '© 2024 Современная система посещаемости',
     },
   };
 
   @override
   void initState() {
     super.initState();
-    _initializeAccountPage();
+    _initializePage();
   }
 
-  Future<void> _initializeAccountPage() async {
+  Future<void> _initializePage() async {
     await _loadLanguagePreference();
-    await _loadCachedUserData(); // Load cached data first
-    _loadInitialData(); // Then attempt to load fresh data
-  }
-
-  void _loadInitialData() {
-    if (_selectedFilter == FilterType.myself) {
-      _loadUserData();
-    } else {
-      _loadAllEmployees();
-    }
+    await _loadUserProfile();
+    await _loadCompanyEmployees();
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -145,372 +195,536 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   String _translate(String key) {
-    return _localizedStringsForAccount[_currentLanguage]?[key] ??
-        _localizedStringsForAccount['uz']![key]!;
+    return _localizedStrings[_currentLanguage]?[key] ??
+        _localizedStrings['uz']?[key] ??
+        key;
   }
 
-  Future<void> _loadCachedUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        userName = prefs.getString('userName');
-        userRole = prefs.getString('userRole');
-        userAvatarUrl = prefs.getString('userAvatarUrl');
-        if (userName == null && _selectedFilter == FilterType.myself) {
-          // Only show this specific message if 'myself' is selected and cache is empty
-          message = _translate('user_data_not_found');
-        }
-      });
-    }
-  }
-
-  Future<void> _loadUserData() async {
+  Future<void> _loadUserProfile() async {
     if (!mounted) return;
-    setState(() {
-      _isLoadingProfile = true;
-      // Keep existing message if loading from cache, otherwise show loading
-      if (userName == null) message = _translate('loading_username');
-    });
+    setState(() => _isLoadingProfile = true);
 
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) {
+      if (userId == null) return;
+
+      final userResponse = await supabase
+          .from('users')
+          .select('full_name, email, position, profile_image, company_id')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (userResponse != null) {
+        final companyId = userResponse['company_id'];
+        String? fetchedCompanyName;
+
+        if (companyId != null) {
+          final companyResponse = await supabase
+              .from('companies')
+              .select('company_name')
+              .eq('id', companyId)
+              .maybeSingle();
+          fetchedCompanyName = companyResponse?['company_name'];
+        }
+
         if (mounted) {
           setState(() {
-            message = _translate(
-                'error_loading_user_data'); // Or "User not logged in"
-            _isLoadingProfile = false;
+            userName = userResponse['full_name'];
+            userEmail = userResponse['email'];
+            userRole = userResponse['position'];
+            userAvatarUrl = userResponse['profile_image'];
+            companyName = fetchedCompanyName;
           });
         }
-        return;
       }
-      print('Foydalanuvchi ID: $userId');
-
-      final response = await supabase
-          .from('users')
-          .select('name, lavozim, avatar')
-          .eq('id', userId)
-          .single();
-
-      print('Supabase javobi: $response');
-
+    } catch (e) {
+      print("Error loading user profile: $e");
       if (mounted) {
-        setState(() {
-          userName = response['name'] as String?;
-          userRole = response['lavozim'] as String?;
-          userAvatarUrl = response['avatar'] as String?;
-          message = ''; // Clear error/loading message on success
-          _isLoadingProfile = false;
-        });
-        _cacheUserData();
+        setState(() => message = _translate('error_loading_data'));
       }
-    } catch (error) {
-      print("Foydalanuvchi ma'lumotlarini yuklashda xatolik: $error");
-      if (mounted) {
-        setState(() {
-          // Only set error if not already showing cached data or "user_data_not_found"
-          if (userName == null) message = _translate('error_loading_user_data');
-          // Don't clear cached data on error, let it persist for offline
-          _isLoadingProfile = false;
-        });
-      }
+    } finally {
+      if (mounted) setState(() => _isLoadingProfile = false);
     }
   }
 
-  Future<void> _loadAllEmployees() async {
+  Future<void> _loadCompanyEmployees() async {
     if (!mounted) return;
-    setState(() {
-      _isLoadingEmployees = true;
-      _employees = [];
-      message = _translate('loading_employees');
-    });
+    setState(() => _isLoadingEmployees = true);
+
     try {
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) {
-        if (mounted)
-          setState(() {
-            message = _translate('error_loading_employees_data');
-            _isLoadingEmployees = false;
-          });
-        return;
-      }
+      if (userId == null) return;
+
       final userResponse = await supabase
           .from('users')
           .select('company_id')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
-      final companyId = userResponse['company_id'];
-      if (companyId == null) {
-        if (mounted)
-          setState(() {
-            message = _translate('no_company_for_employees');
-            _isLoadingEmployees = false;
-          });
-        return;
-      }
-      print('Company ID: $companyId');
+      final companyId = userResponse?['company_id'];
+      if (companyId == null) return;
 
-      final response = await supabase
+      final employeesResponse = await supabase
           .from('users')
-          .select('name, lavozim, avatar')
+          .select('full_name, email, position, profile_image')
           .eq('company_id', companyId)
-          .eq('is_super_admin', false);
-
-      print('All employees Supabase response: $response');
+          .neq('id', userId);
 
       if (mounted) {
         setState(() {
-          _employees = List<Map<String, dynamic>>.from(response);
-          message = '';
-          _isLoadingEmployees = false;
+          _employees = List<Map<String, dynamic>>.from(employeesResponse);
         });
       }
-    } catch (error) {
-      print("Xodimlar ma'lumotlarini yuklashda xatolik: $error");
-      if (mounted) {
-        setState(() {
-          message = _translate(
-              'no_internet_employees'); // More specific error for likely offline
-          _employees = [];
-          _isLoadingEmployees = false;
-        });
-      }
+    } catch (e) {
+      print("Error loading employees: $e");
+    } finally {
+      if (mounted) setState(() => _isLoadingEmployees = false);
     }
   }
 
-  Future<void> _cacheUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (userName != null)
-      await prefs.setString('userName', userName!);
-    else
-      await prefs.remove('userName');
-    if (userRole != null)
-      await prefs.setString('userRole', userRole!);
-    else
-      await prefs.remove('userRole');
-    if (userAvatarUrl != null)
-      await prefs.setString('userAvatarUrl', userAvatarUrl!);
-    else
-      await prefs.remove('userAvatarUrl');
-  }
-
-  Widget _employeeListWidget() {
-    if (_isLoadingEmployees) {
-      return const Center(child: CupertinoActivityIndicator());
+  Future<void> _logout() async {
+    try {
+      await supabase.auth.signOut();
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      // The main app will handle navigation
+    } catch (e) {
+      print('Logout error: $e');
     }
-    if (message.isNotEmpty && _selectedFilter == FilterType.allEmployees) {
-      // Show message only if it's for 'all_employees'
-      // Check if the message is specifically an error related to loading employees.
-      bool isEmployeeLoadingError =
-          message == _translate('error_loading_employees_data') ||
-              message == _translate('no_internet_employees') ||
-              message == _translate('no_company_for_employees');
-      if (isEmployeeLoadingError) {
-        return Center(
-            child: Text(message,
-                style: TextStyle(color: CupertinoColors.systemRed)));
-      }
-    }
-    if (_employees.isEmpty) {
-      return Center(child: Text(_translate('loading_employees')));
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _employees.length,
-      itemBuilder: (context, index) {
-        final employee = _employees[index];
-        return CupertinoListTile(
-          leading: employee['avatar'] != null &&
-                  (employee['avatar'] as String).isNotEmpty
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.network(
-                    employee['avatar'] as String,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(CupertinoIcons.person_circle_fill, size: 40),
-                  ),
-                )
-              : const Icon(CupertinoIcons.person_circle_fill, size: 40),
-          title: Text(employee['name'] as String? ?? 'No Name'),
-          subtitle: Text(employee['lavozim'] as String? ?? 'No Position'),
-        );
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor =
-        isDarkMode ? CupertinoColors.white : CupertinoColors.black;
-    final secondaryTextColor = isDarkMode
-        ? CupertinoColors.white.withOpacity(0.8)
-        : CupertinoColors.black.withOpacity(0.8);
-
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(_translate('account_title')),
-        backgroundColor: theme.barBackgroundColor,
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      appBar: AppBar(
+        backgroundColor: backgroundColor,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: Text(
+          _translate('profile'),
+          style: TextStyle(
+            color: textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsPage()),
+              );
+            },
+            icon: Icon(CupertinoIcons.settings, color: primaryColor),
+          ),
+        ],
       ),
-      backgroundColor: theme.scaffoldBackgroundColor,
-      child: SafeArea(
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: CupertinoSegmentedControl<FilterType>(
-                groupValue: _selectedFilter,
-                onValueChanged: (FilterType newValue) {
-                  if (mounted) {
-                    setState(() {
-                      _selectedFilter = newValue;
-                      message =
-                          ''; // Clear general messages when switching tabs
-                    });
-                  }
-                  if (newValue == FilterType.allEmployees) {
-                    _loadAllEmployees();
-                  } else {
-                    _loadUserData(); // This will re-check cache and then fetch if needed
-                  }
-                },
-                children: {
-                  FilterType.myself: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(_translate('myself'),
-                        style: TextStyle(fontSize: 16)),
-                  ),
-                  FilterType.allEmployees: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(_translate('all_employees'),
-                        style: TextStyle(fontSize: 16)),
-                  ),
-                },
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      if (_selectedFilter == FilterType.myself)
-                        Column(
-                          children: [
-                            if (_isLoadingProfile &&
-                                userName ==
-                                    null) // Show loader only if no cached data
-                              const Padding(
-                                padding: EdgeInsets.all(20.0),
-                                child: CupertinoActivityIndicator(radius: 20),
-                              )
-                            else if (userName != null ||
-                                userRole != null ||
-                                userAvatarUrl !=
-                                    null) // If any cached data exists, show card
-                              MUILoginCard(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(20.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      userAvatarUrl != null &&
-                                              userAvatarUrl!.isNotEmpty
-                                          ? ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(75),
-                                              child: Image.network(
-                                                userAvatarUrl!,
-                                                width: 150,
-                                                height: 150,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (context, error,
-                                                        stackTrace) =>
-                                                    const Icon(
-                                                        CupertinoIcons
-                                                            .person_circle_fill,
-                                                        size: 150,
-                                                        color: CupertinoColors
-                                                            .systemGrey),
-                                              ),
-                                            )
-                                          : const Icon(
-                                              CupertinoIcons.person_circle_fill,
-                                              size: 150,
-                                              color:
-                                                  CupertinoColors.systemGrey),
-                                      const SizedBox(height: 20),
-                                      Text(_translate('name_surname'),
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                              fontSize: 22,
-                                              color: secondaryTextColor)),
-                                      Text(
-                                        userName ??
-                                            _translate(
-                                                'loading_username'), // Show loading if specifically null
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.bold,
-                                            color: textColor),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(_translate('position'),
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                              fontSize: 20,
-                                              color: secondaryTextColor)),
-                                      Text(
-                                        userRole ??
-                                            _translate(
-                                                'loading_position'), // Show loading if specifically null
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontSize: 24, color: textColor),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            else if (message.isNotEmpty &&
-                                message != _translate('loading_username') &&
-                                message !=
-                                    _translate(
-                                        'loading_position')) // Show message if no data and not loading
-                              Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Text(message,
-                                    style: TextStyle(
-                                        color: CupertinoColors.systemRed,
-                                        fontSize: 16),
-                                    textAlign: TextAlign.center),
-                              )
-                          ],
-                        )
-                      else if (_selectedFilter == FilterType.allEmployees)
-                        MUILoginCard(
-                          child: Padding(
-                            padding: const EdgeInsets.all(
-                                0), // MUILoginCard already has padding
-                            child:
-                                _employeeListWidget(), // This handles its own loading/error states
-                          ),
-                        ),
-                    ],
-                  ),
+      body: SafeArea(
+        child: _isLoadingProfile
+            ? Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
+              )
+            : SingleChildScrollView(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildProfileCard(),
+                    SizedBox(height: 24),
+                    _buildCompanyEmployeesSection(),
+                    SizedBox(height: 24),
+                    _buildQuickActions(),
+                  ],
                 ),
               ),
+      ),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    return Container(
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, secondaryColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: userAvatarUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(25),
+                    child: Image.network(
+                      userAvatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildDefaultAvatar(),
+                    ),
+                  )
+                : _buildDefaultAvatar(),
+          ),
+          SizedBox(height: 16),
+          Text(
+            userName ?? 'User',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
+            ),
+          ),
+          if (userEmail != null) ...[
+            SizedBox(height: 4),
+            Text(
+              userEmail!,
+              style: TextStyle(
+                fontSize: 14,
+                color: textSecondary,
+              ),
+            ),
+          ],
+          SizedBox(height: 16),
+          _buildInfoRow(CupertinoIcons.briefcase, _translate('position'),
+              userRole ?? 'N/A'),
+          if (companyName != null) ...[
+            SizedBox(height: 12),
+            _buildInfoRow(CupertinoIcons.building_2_fill, _translate('company'),
+                companyName!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDefaultAvatar() {
+    return Container(
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primaryColor, secondaryColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Icon(
+        CupertinoIcons.person_fill,
+        color: Colors.white,
+        size: 40,
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: primaryColor, size: 16),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: textSecondary,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompanyEmployeesSection() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  CupertinoIcons.group,
+                  color: primaryColor,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text(
+                _translate('company_employees'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          if (_isLoadingEmployees)
+            Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+              ),
+            )
+          else if (_employees.isEmpty)
+            Center(
+              child: Text(
+                _translate('no_employees'),
+                style: TextStyle(color: textSecondary),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: _employees.length,
+              separatorBuilder: (context, index) => SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final employee = _employees[index];
+                return _buildEmployeeCard(employee);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmployeeCard(Map<String, dynamic> employee) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, secondaryColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: employee['profile_image'] != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      employee['profile_image'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                          CupertinoIcons.person_fill,
+                          color: Colors.white,
+                          size: 24),
+                    ),
+                  )
+                : Icon(CupertinoIcons.person_fill,
+                    color: Colors.white, size: 24),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  employee['full_name'] ?? 'Unknown',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: textPrimary,
+                  ),
+                ),
+                if (employee['position'] != null) ...[
+                  SizedBox(height: 2),
+                  Text(
+                    employee['position'],
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildActionButton(
+            icon: CupertinoIcons.settings,
+            title: _translate('settings'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsPage()),
+              );
+            },
+          ),
+          SizedBox(height: 12),
+          _buildActionButton(
+            icon: CupertinoIcons.doc_text,
+            title: _translate('privacy_policy'),
+            onTap: () {
+              // Handle privacy policy
+            },
+          ),
+          SizedBox(height: 12),
+          _buildActionButton(
+            icon: CupertinoIcons.doc_checkmark,
+            title: _translate('terms_of_service'),
+            onTap: () {
+              // Handle terms of service
+            },
+          ),
+          SizedBox(height: 12),
+          _buildActionButton(
+            icon: CupertinoIcons.star,
+            title: _translate('rate_us'),
+            onTap: () {
+              // Handle rate us
+            },
+          ),
+          SizedBox(height: 12),
+          _buildActionButton(
+            icon: CupertinoIcons.square_arrow_right,
+            title: _translate('logout'),
+            onTap: _logout,
+            isDestructive: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDestructive ? Colors.red.withOpacity(0.1) : backgroundColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDestructive
+                    ? Colors.red.withOpacity(0.1)
+                    : primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: isDestructive ? Colors.red : primaryColor,
+                size: 20,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: isDestructive ? Colors.red : textPrimary,
+                ),
+              ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_right,
+              color: textSecondary,
+              size: 16,
             ),
           ],
         ),

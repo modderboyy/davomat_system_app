@@ -42,7 +42,7 @@ class _AuthGateState extends State<AuthGate> {
               // Prevent unnecessary rebuilds if already logged out
               _setLoggedIn(false);
             }
-            return LoginPage(
+            return ModernLoginPage(
                 onLoginSuccess: _setLoggedIn); // Pass the callback here
           }
         } else {
