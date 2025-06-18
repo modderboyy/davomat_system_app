@@ -861,57 +861,57 @@ class _ModernLoginViewState extends State<ModernLoginView> {
         password: password,
       );
 
-      // _signIn() metodida, muvaffaqiyatli login dan keyin:
       if (response.session != null) {
+        print("Login successful for user: ${response.user!.id}");
+        
+        // TUZATILGAN: Foydalanuvchi ma'lumotlarini tekshirish
         final userDetails = await supabase
             .from('users')
-            .select('is_super_admin')
-            .eq('id', response.user!.id)
+            .select('is_super_admin, full_name, email')
+            .eq('id', response.user!.id)  // users.id = auth.users.id
             .maybeSingle();
 
         final prefs = await SharedPreferences.getInstance();
 
-        if (userDetails != null && userDetails['is_super_admin'] == true) {
-          await prefs.setBool('is_super_admin', true);
-
-          // Admin sahifasiga o'tish
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => AdminPage()),
-          );
-        } else {
-          await prefs.setBool('is_super_admin', false);
-          widget.onLoginSuccess(true); // Oddiy user
-        }
-      }
-
-      if (response.session != null && response.user != null) {
-        final userDetails = await supabase
-            .from('users')
-            .select('is_super_admin')
-            .eq('xodim_id', response.user!.id) // 'id' o‘rniga 'xodim_id'
-            .maybeSingle();
-
-        if (userDetails != null && userDetails.containsKey('is_super_admin')) {
-          final prefs = await SharedPreferences.getInstance();
+        if (userDetails != null) {
+          print("User details found: $userDetails");
           final isSuperAdmin = userDetails['is_super_admin'] == true;
           await prefs.setBool('is_super_admin', isSuperAdmin);
 
           if (isSuperAdmin) {
-            // Admin sahifasiga yo‘naltirish
-            // Navigator.pushReplacement(
-            //   context,
-            //   MaterialPageRoute(builder: (context) => AdminPage()),
-            // );
+            print("User is admin, navigating to AdminPage");
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => AdminPage()),
+            );
           } else {
+            print("User is regular user");
             widget.onLoginSuccess(true);
           }
         } else {
-          // Foydalanuvchi topilmadi yoki 'is_super_admin' maydoni yo‘q
-          debugPrint('Foydalanuvchi maʼlumotlari topilmadi yoki noto‘g‘ri');
+          print("User details not found, creating new record");
+          
+          // TUZATILGAN: Yangi user record yaratish
+          try {
+            await supabase.from('users').insert({
+              'id': response.user!.id,
+              'email': response.user!.email,
+              'full_name': response.user!.email?.split('@')[0] ?? 'User',
+              'is_super_admin': false,
+              'created_at': DateTime.now().toIso8601String(),
+            });
+            
+            await prefs.setBool('is_super_admin', false);
+            print("Created new user record, regular user");
+            widget.onLoginSuccess(true);
+          } catch (e) {
+            print("Error creating user record: $e");
+            // Agar user record yaratib bo'lmasa, lekin login muvaffaqiyatli bo'lsa,
+            // oddiy user sifatida davom ettiramiz
+            await prefs.setBool('is_super_admin', false);
+            widget.onLoginSuccess(true);
+          }
         }
-      } else {
-        debugPrint('Login muvaffaqiyatsiz: session yoki user null');
       }
     } on AuthException catch (error) {
       _logger.e('Login error: ${error.message}');
@@ -1053,6 +1053,7 @@ class _ModernRegistrationViewState extends State<ModernRegistrationView> {
     final adminPassword = _adminPasswordController.text.trim();
 
     try {
+      // TUZATILGAN: Avval users jadvalini tekshirish
       final existingUser = await supabase
           .from('users')
           .select('email')
@@ -1075,32 +1076,39 @@ class _ModernRegistrationViewState extends State<ModernRegistrationView> {
         return;
       }
 
+      // Auth user yaratish
       final authResponse = await supabase.auth.signUp(
         email: adminEmail,
         password: adminPassword,
       );
 
       if (authResponse.user != null) {
+        print("Auth user created: ${authResponse.user!.id}");
+        
+        // Company yaratish
         final companyResponse = await supabase.from('companies').insert({
           'company_name': companyName,
+          'created_at': DateTime.now().toIso8601String(),
         }).select('id');
 
         final companyId = companyResponse[0]['id'];
+        print("Company created: $companyId");
 
-        await supabase.from('users').upsert({
-          'id': authResponse.user!.id, // Bu o'zgarmas
-          'xodim_id': authResponse.user!.id, // Bu qo'shilsin
+        // TUZATILGAN: Users jadvaliga ma'lumot qo'shish
+        await supabase.from('users').insert({
+          'id': authResponse.user!.id,  // users.id = auth.users.id
           'email': adminEmail,
+          'full_name': "Admin",
           'is_super_admin': true,
-          'lavozim': companyName,
+          'position': 'Administrator',
           'company_id': companyId,
-          'name': "Admin",
-        }, onConflict: 'id');
+          'created_at': DateTime.now().toIso8601String(),
+        });
+
+        print("User record created successfully");
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('is_super_admin', true);
-
-        // Removed login_activities insert - this was causing the foreign key error
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1113,7 +1121,6 @@ class _ModernRegistrationViewState extends State<ModernRegistrationView> {
             ),
           );
 
-          // Navigate to admin page or handle success
           widget.onViewToggle();
         }
       }

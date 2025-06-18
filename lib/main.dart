@@ -196,15 +196,33 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
       loggedIn = true;
       currentUserId = session.user.id;
       try {
+        print("Checking user details for ID: ${session.user.id}");
+        
+        // TUZATILGAN: users jadvalidan ma'lumot olish
         final userDetails = await supabase
             .from('users')
-            .select('is_super_admin')
-            .eq('id', session.user.id)
+            .select('is_super_admin, full_name, email')
+            .eq('id', session.user.id)  // users.id = auth.users.id
             .maybeSingle();
-        isAdminUser =
-            (userDetails != null && userDetails['is_super_admin'] == true);
-        if (userDetails == null)
+            
+        print("User details response: $userDetails");
+        
+        if (userDetails != null) {
+          isAdminUser = (userDetails['is_super_admin'] == true);
+          print("User found. Is admin: $isAdminUser");
+        } else {
           print("User details not found for ${session.user.id}");
+          
+          // YANGI: Agar users jadvalida ma'lumot yo'q bo'lsa, uni yaratamiz
+          try {
+            await _createUserRecord(session.user);
+            print("Created new user record for ${session.user.id}");
+            isAdminUser = false; // Yangi user admin emas
+          } catch (e) {
+            print("Error creating user record: $e");
+            isAdminUser = false;
+          }
+        }
       } catch (e) {
         print("Error fetching user admin status: $e");
         isAdminUser = false;
@@ -223,6 +241,22 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
       });
     }
     await _saveAuthPreferences(loggedIn, isAdminUser, currentUserId);
+  }
+
+  // YANGI FUNKSIYA: Users jadvaliga ma'lumot yaratish
+  Future<void> _createUserRecord(User user) async {
+    try {
+      await supabase.from('users').insert({
+        'id': user.id,
+        'email': user.email,
+        'full_name': user.email?.split('@')[0] ?? 'User',
+        'is_super_admin': false,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      print("Error inserting user record: $e");
+      rethrow;
+    }
   }
 
   void _setLoggedIn(bool loggedIn) {
